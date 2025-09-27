@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>유피드 자료관 — 정책 페이지</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root{
+      --bg: #1c1c1c; /* 사용자가 요청한 배경 */
+      --header: #003d80; /* 요청한 진한 파란색 */
+      --muted: #b8c3cf;
+      --accent-contrast: #ffffff;
+      --sidebar: #0e1418;
+      --btn-active: rgba(0,61,128,0.12);
+      --radius:8px;
+    }
+
+    html,body{height:100%;margin:0;font-family: Arial, Helvetica, "Noto Sans KR", sans-serif;background:var(--bg);color:var(--accent-contrast)}
+
+    /* 레이아웃 */
+    .app{display:flex;flex-direction:column;min-height:100vh}
+
+    /* 헤더: 높이를 통일(요청) */
+    header{
+      background-color:var(--header);
+      color:var(--accent-contrast);
+      height:56px;          /* 고정 높이 */
+      padding:0 25px;       /* 수직 패딩 제거하여 높이와 통일성 유지 */
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    header .logo{font-size:19.8px;font-weight:bold}
+
+    header .right {
+      display:flex;align-items:center;gap:12px
+    }
+
+    .exit-btn{
+      color:var(--accent-contrast);text-decoration:none;margin-left:15px;font-weight:bold;font-size:15.4px;transition:color .2s;cursor:pointer;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);background:transparent;display:inline-flex;align-items:center;gap:8px
+    }
+    .exit-btn:hover{color:#ffcc00}
+
+    main{display:flex;flex:1;overflow:hidden}
+
+    /* 사이드바 */
+    .sidebar{width:260px;padding:18px;background:var(--sidebar);border-right:1px solid rgba(255,255,255,0.03);box-sizing:border-box}
+    .sidebar h3{margin:0 0 14px 0;font-size:13px;color:var(--muted)}
+
+    .nav-btn{display:block;width:100%;text-align:left;padding:12px 14px;border-radius:6px;background:transparent;border:none;color:inherit;margin-bottom:8px;cursor:pointer;font-weight:600}
+    .nav-btn:hover{background:rgba(255,255,255,0.02)}
+    .nav-btn.active{background:var(--btn-active);}
+
+    /* 콘텐츠 영역 — 사용자 요청대로 둥근 박스 제거 */
+    .content{flex:1;padding:26px;overflow:auto}
+    .content h1{margin:0 0 12px 0;font-size:20px}
+    .content .body-text{color:var(--muted);line-height:1.7}
+
+    /* 반응형 */
+    @media(max-width:800px){
+      .sidebar{position:fixed;left:-300px;top:56px;height:calc(100% - 56px);z-index:40;transition:left .22s ease}
+      .sidebar.open{left:0}
+      header .menu-toggle{display:inline-flex}
+    }
+    .menu-toggle{display:none;background:transparent;border:0;color:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="logo">유피드 자료관</div>
+      <div class="right">
+        <button class="menu-toggle" aria-label="메뉴 토글">☰</button>
+        <a class="exit-btn" id="exitBtn" href="#" title="사이트 나가기">
+          <!-- 출구 아이콘 -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 17L15 12L10 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M21 12H13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <span>나가기</span>
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <aside class="sidebar" id="sidebar">
+        <h3>카테고리</h3>
+        <button class="nav-btn" data-key="terms">이용약관</button>
+        <button class="nav-btn" data-key="privacy">개인정보 처리방침</button>
+        <button class="nav-btn" data-key="asset">유피드 자산 데이터 서버 지침</button>
+        <button class="nav-btn" data-key="notice">밴블리온 운영부 고지 사항</button>
+        <button class="nav-btn" data-key="community">커뮤니티 가이드라인</button>
+      </aside>
+
+      <section class="content">
+        <h1 id="title">이용약관</h1>
+        <div id="body" class="body-text">
+          <p>여기에 이용약관 전문 또는 요약을 넣으세요. 아래 스크립트의 <code>POLICIES</code> 객체에서 각 항목의 내용을 편집하면 됩니다.</p>
+          <p>예) 서비스 이용에 대한 기본 원칙, 계정 관련 규정, 금지행위, 면책사항, 분쟁 해결 절차 등.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // 수정 포인트
+    const EXIT_URL = '#'; // 나가기 버튼 링크를 여기에 넣으세요.
+
+    const POLICIES = {
+      terms: {
+        title: '이용약관',
+        content: `
+          <p>환영합니다. 본 이용약관은 유피드(이하 '회사')가 제공하는 모든 서비스(이하 '서비스')의 이용에 관한 조건을 규정합니다. 서비스에 접속하거나 이용함으로써 귀하는 본 약관에 동의한 것으로 간주됩니다.</p>
+          <h3>1. 계정</h3>
+          <p>회원은 정확한 정보를 제공해야 하며, 계정 보안은 회원의 책임입니다.</p>
+          <h3>2. 이용 제한</h3>
+          <p>불법적이거나 타인의 권리를 침해하는 행위는 금지됩니다. 위반 시 계정 정지 및 법적 조치가 취해질 수 있습니다.</p>
+        `
+      },
+      privacy: {
+        title: '개인정보 처리방침',
+        content: `
+          <p>당사는 회원의 개인정보를 중요하게 생각하며, 관련 법령을 준수하여 개인정보를 수집·이용·보호합니다.</p>
+          <h3>수집 항목</h3>
+          <p>회원가입 시 필요한 정보(예: 이메일, 닉네임) 및 서비스 이용 과정에서 생성되는 로그를 수집할 수 있습니다.</p>
+          <h3>보관 및 파기</h3>
+          <p>개인정보는 적법한 목적 달성 시 지체 없이 파기합니다. 구체적인 보존 기간은 내부 방침에 따릅니다.</p>
+        `
+      },
+      asset: {
+        title: '유피드 자산 데이터 서버 지침',
+        content: `
+          <p>유피드 자산(이미지, 오디오, 모델 등)의 업로드 및 사용 시 지켜야 할 기술적·운영적 지침입니다.</p>
+          <h3>저작권</h3>
+          <p>업로드하는 모든 자산은 사용 권한을 보유해야 하며, 타인의 저작권을 침해해서는 안 됩니다.</p>
+          <h3>서버 정책</h3>
+          <p>대용량 파일 업로드, API 사용량 제한 등 서버 운영에 관한 정책을 명시합니다.</p>
+        `
+      },
+      notice: {
+        title: '밴블리온 운영부 고지 사항',
+        content: `
+          <p>운영정책 변경, 점검 공지, 서비스 개선 안내 등 운영부에서 전달하는 공식 고지문을 모아둔 공간입니다.</p>
+          <h3>예시: 정기점검</h3>
+          <p>매월 둘째 주 화요일 02:00~04:00 서비스 점검이 예정되어 있습니다.</p>
+        `
+      },
+      community: {
+        title: '커뮤니티 가이드라인',
+        content: `
+          <p>커뮤니티 내에서 지켜야 할 기본 매너와 금지행위를 안내합니다.</p>
+          <h3>금지 행위</h3>
+          <p>혐오표현, 개인정보 유출 요청, 스팸, 악성 링크 게시 등은 엄격히 금지됩니다.</p>
+          <h3>신고 및 제재</h3>
+          <p>위반 게시물은 신고 시스템을 통해 접수되며, 확인 결과에 따라 경고·삭제·영구 차단 등의 조치가 취해집니다.</p>
+        `
+      }
+    };
+
+    // exit 링크 설정
+    document.getElementById('exitBtn').setAttribute('href', EXIT_URL);
+
+    const navBtns = Array.from(document.querySelectorAll('.nav-btn'));
+    const titleEl = document.getElementById('title');
+    const bodyEl = document.getElementById('body');
+
+    function setActive(key){
+      navBtns.forEach(b=>b.classList.toggle('active', b.dataset.key===key));
+      const p = POLICIES[key];
+      if(p){
+        titleEl.textContent = p.title;
+        bodyEl.innerHTML = p.content;
+      } else {
+        titleEl.textContent = '';
+        bodyEl.innerHTML = '<p>내용이 없습니다.</p>';
+      }
+    }
+
+    // 버튼 클릭 바인딩
+    navBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        setActive(btn.dataset.key);
+        const sidebar = document.getElementById('sidebar');
+        if(sidebar.classList.contains('open')) sidebar.classList.remove('open');
+      })
+    })
+
+    // 모바일 토글
+    const menuToggle = document.querySelector('.menu-toggle');
+    if(menuToggle){
+      menuToggle.addEventListener('click', ()=>{
+        document.getElementById('sidebar').classList.toggle('open');
+      });
+    }
+
+    // 초기 표시 로직: URL(hash or ?section=) 또는 referrer에 포함된 파라미터를 우선 사용
+    (function initFromURL(){
+      const allowed = Object.keys(POLICIES);
+      const params = new URLSearchParams(window.location.search);
+      let key = params.get('section') || null;
+
+      if(!key && location.hash){
+        key = location.hash.replace('#','');
+      }
+
+      // 시도: referrer에서 section 파라미터 추출(원본 버튼이 referrer에 section을 붙여 보낼 경우 대비)
+      if(!key && document.referrer){
+        try{
+          const refUrl = new URL(document.referrer);
+          const refParams = new URLSearchParams(refUrl.search);
+          key = refParams.get('section') || null;
+          // 또는 referrer hash
+          if(!key && refUrl.hash) key = refUrl.hash.replace('#','');
+        }catch(e){ /* ignore */ }
+      }
+
+      // 안전성: 허용된 키인지 확인
+      if(key && allowed.includes(key)){
+        setActive(key);
+        // 해시를 남겨두어 북마크/뒤로가기 동작 친화적으로 유지
+        history.replaceState(null, '', '#' + key);
+      } else {
+        setActive('terms');
+      }
+    })();
+
+  </script>
+</body>
+</html>
