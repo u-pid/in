@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>시작하기 - 유피드</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    /* 헤더/푸터/모달에서 사용되는 공통 스타일 (원본에서 재사용) */
+    * { box-sizing: border-box; }
+    html, body { height:100%; margin:0; padding:0; background-color:#1c1c1c; color:#fff; font-family: Arial, sans-serif; -webkit-font-smoothing:antialiased; }
+    .site-content { width:100%; max-width:970px; margin:0 auto; padding:12px; }
+
+    header { background-color:#003d80; color:white; padding:11px 25px; display:flex; justify-content:space-between; align-items:center; }
+    header .logo { font-size:19.8px; font-weight:bold; }
+    header .auth-buttons a { color:white; text-decoration:none; margin-left:15px; font-weight:bold; font-size:15.4px; transition: color .3s; cursor:pointer; }
+    header .auth-buttons a:hover { color:#ffcc00; }
+
+    footer{ background:#111; color:#ccc; font-size:12px; padding:20px; text-align:center; line-height:1.5; }
+    footer a{ color:#ccc; text-decoration:none; margin:0 4.5px; }
+
+    /* 모달 스타일 (원본 재사용) */
+    .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center; padding:20px; box-sizing:border-box; }
+    .modal-content { width:420px; max-width: calc(100% - 40px); background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:18px; border-radius:12px; color:white; box-shadow:0 10px 30px rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.03); backdrop-filter: blur(6px) saturate(120%); display:flex; flex-direction:column; gap:12px; position:relative; }
+    .modal-close { position:absolute; top:10px; right:10px; background:transparent; color:#ddd; border:none; cursor:pointer; font-size:20px; padding:6px; border-radius:8px; transition: background .15s, color .15s; }
+    .modal-close:hover{ background:rgba(255,255,255,0.02); color:#fff; }
+    .modal-brand{ display:flex; gap:12px; align-items:center; }
+    .field{ display:block; margin-top:8px; width:100%; }
+    input[type="email"], input[type="password"], input[type="text"]{ width:100%; margin:8px 0 0 0; padding:12px 44px 12px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.4); color:#fff; outline:none; font-size:14px; box-sizing:border-box; }
+    .password-field{ position:relative; }
+    .pw-toggle{ position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#ddd; padding:6px; border-radius:8px; cursor:pointer; font-size:14px; display:inline-flex; align-items:center; justify-content:center; }
+    .pw-toggle svg{ width:18px; height:18px; display:block; }
+
+    /* 시작하기 전용 섹션 */
+    .session-wrap{ display:flex; justify-content:center; align-items:center; /* 세션과 헤더/푸터 사이 공간을 줄이기 위해 min-height를 낮춤 */ min-height: calc(100vh - 260px); padding:30px 12px; }
+    .session-box{ width:100%; max-width:820px; background: rgba(0,0,0,0.6); border-radius:14px; padding:22px; display:flex; gap:18px; align-items:flex-start; box-shadow:0 8px 30px rgba(0,0,0,0.6); }
+    /* 사진 크기 확대 (요청) */
+    .session-img{ flex:0 0 220px; }
+    .session-img img{ width:215px; height:215px; object-fit:cover; border-radius:8px; display:block; }
+    .session-content{ flex:1 1 auto; color:#fff; min-width:0; }
+    /* 노란색 제목 크기 줄임 (요청) */
+    .session-title{ color:#ffea8a; font-size:18px; font-weight:700; line-height:1.25; margin:2px 0 10px 0; }
+    .session-desc{ color:#ffffff; font-size:15px; line-height:1.6; opacity:0.95; margin-bottom:18px; }
+    .session-ip{ color:#ddd; font-size:14px; font-weight:700; margin-top:12px; }
+
+    /* 반응형 간단 처리 */
+    @media (max-width:600px){ .session-box{ flex-direction:column; align-items:center; text-align:center; } .session-img{ flex:0 0 auto; } .session-content{ max-width:100%; } .session-title{ font-size:20px; } }
+  </style>
+</head>
+<body>
+  <!-- 헤더 (원본 그대로 재사용) -->
+  <header>
+    <a href="index.html" class="logo" aria-label="홈으로 이동" style="color:inherit; text-decoration:none;">BANBLE LEON</a>
+    <div class="auth-buttons">
+      <a onclick="openModal('loginModal')">로그인</a>
+      <a onclick="openModal('signupModal')">회원가입</a>
+      <a id="logoutBtn" style="display:none;cursor:pointer;">로그아웃</a>
+      <span id="userName" style="margin-left:15px; font-weight:bold; color:#ffcc00; display:none;"></span>
+    </div>
+  </header>
+
+  <div class="site-content">
+    <!-- 상단의 주황 "시작하기" 텍스트 박스는 요청에 따라 제거했습니다. -->
+
+    <div class="session-wrap">
+      <div class="session-box" role="region" aria-label="시작하기 세션">
+        <div class="session-img">
+          <img src="https://i.imgur.com/VEm5N6k.png" alt="승인된 IP 전용 기능" />
+        </div>
+        <div class="session-content">
+          <div class="session-title">이 기능은 밴블리온의 승인된 IP가 사용 가능한 기능입니다</div>
+          <div id="description" class="session-desc">
+유피드 커넥트 커뮤니케이션 플랫폼에서 제공하는 기능은 여러분의 공인 IP가 승인된 밴블리온 정식 멤버를 대상으로 제공되고 있습니다. 이용 가능한 조건을 통한 서비스 이용을 위해 부가 기기를 통한 접속 중이라면 밴블리온 지도부 연락처를 통한 "IP 변경 신고"를 진행해 주시기 바랍니다.</div>
+          <div id="currentIp" class="session-ip">현재 IP : 조회중...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 로그인/회원가입 모달 (원본 그대로 재사용) -->
+  <div id="loginModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="loginTitle">
+    <div class="modal-content" role="document">
+      <button class="modal-close" onclick="closeModal('loginModal')" aria-label="닫기">&times;</button>
+      <div class="modal-inner">
+        <div class="modal-brand">
+          <img src="https://i.imgur.com/FzKC3OX.png" alt="브랜드" style="width:56px;height:56px;border-radius:8px;">
+          <div>
+            <h2 id="loginTitle">로그인</h2>
+            <p>계정으로 로그인하여 유피드 홀을 이용하세요.</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="field">
+          <input type="email" id="loginEmail" placeholder="이메일" />
+        </label>
+
+        <label class="field password-field">
+          <input type="password" id="loginPass" placeholder="비밀번호" />
+          <button type="button" class="pw-toggle" data-target="loginPass" aria-label="비밀번호 보기" title="비밀번호 보기">
+            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M1.5 12C1.5 12 5.5 4 12 4s10.5 8 10.5 8-4 8-10.5 8S1.5 12 1.5 12Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:none;">
+              <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17.94 17.94C16.31 19.05 14.24 19.74 12 19.74 6.5 19.74 2 12 2 12s2.41-3.32 6.07-5.24" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9.88 9.88A3 3 0 0114.12 14.12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </label>
+
+        <div class="modal-actions">
+          <label style="font-size:13px;color:#ccc;"><input type="checkbox" id="rememberMe" style="margin-right:6px;"/> 로그인 유지</label>
+        </div>
+
+        <button id="loginSubmit" class="primary-btn">로그인</button>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="openSignupFromLogin" class="alt-btn" type="button">계정 만들기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="signupModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="signupTitle">
+    <div class="modal-content" role="document">
+      <button class="modal-close" onclick="closeModal('signupModal')" aria-label="닫기">&times;</button>
+      <div class="modal-inner">
+        <div class="modal-brand">
+          <img src="https://i.imgur.com/5fdGvm7.png" alt="회원가입" style="width:56px;height:56px;border-radius:8px;">
+          <div>
+            <h2 id="signupTitle">유피드 계정 생성</h2>
+            <p>밴블리온의 유피드 서비스에 가입하세요</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="field">
+          <input type="text" id="signupNickname" placeholder="닉네임" />
+        </label>
+        <label class="field">
+          <input type="email" id="signupEmail" placeholder="이메일" />
+        </label>
+        <label class="field password-field">
+          <input type="password" id="signupPass" placeholder="비밀번호" />
+          <button type="button" class="pw-toggle" data-target="signupPass" aria-label="비밀번호 보기" title="비밀번호 보기">
+            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M1.5 12C1.5 12 5.5 4 12 4s10.5 8 10.5 8-4 8-10.5 8S1.5 12 1.5 12Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:none;">
+              <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17.94 17.94C16.31 19.05 14.24 19.74 12 19.74 6.5 19.74 2 12 2 12s2.41-3.32 6.07-5.24" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9.88 9.88A3 3 0 0114.12 14.12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </label>
+
+        <button id="signupSubmit" class="primary-btn">회원가입</button>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="openLoginFromSignup" class="alt-btn" type="button">로그인 하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 푸터 (원본 재사용) -->
+  <footer>
+    <div>
+      <a href="library.html?section=terms">이용약관</a> |
+      <a href="library.html?section=privacy">개인정보 처리방침</a> |
+      <a href="library.html?section=server">유피드 자산 데이터 서버 지침</a> |
+      <a href="library.html?section=notice">밴블리온 운영부 고지 사항</a> |
+      <a href="library.html?section=community">커뮤니티 가이드라인</a>
+    </div>
+    <div style="margin-top:9px;">유피드는 밴블리온 사 프로그램 개발 부서 "에너자이저"의 공식 인트라넷 플랫폼으로, 모든 사이트 내 정보는 사이트 자산사의 목적에 한해 제한되고 관리될 수 있습니다.</div>
+    <div style="margin-top:9px;">경기도 수원시 밴블리온 수원 지부 미공개 위치<br>help@upid.org | 오픈 소스 라이선스<br>©UPID Foundation.</div>
+  </footer>
+
+  <!-- Firebase 및 인증 스크립트 (원본 유지) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile }
+      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJZle3txhhthWgaIWTTHzrLl4bkJqQye4",
+      authDomain: "fast-gateway-290809.firebaseapp.com",
+      projectId: "fast-gateway-290809",
+      storageBucket: "fast-gateway-290809.firebasestorage.app",
+      messagingSenderId: "640433110514",
+      appId: "1:640433110514:web:8fe4fafc9a987b6a4b3f6b",
+      measurementId: "G-2V57XWX7CW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    window.openModal = function(id) { document.getElementById(id).style.display = "flex"; }
+    window.closeModal = function(id) { document.getElementById(id).style.display = "none"; }
+
+    function updateHeader(user) {
+      const userNameEl = document.getElementById("userName");
+      const loginBtn = document.querySelector(".auth-buttons a[onclick*='loginModal']");
+      const signupBtn = document.querySelector(".auth-buttons a[onclick*='signupModal']");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      if (user) {
+        if (loginBtn) loginBtn.style.display = "none";
+        if (signupBtn) signupBtn.style.display = "none";
+        if (logoutBtn) logoutBtn.style.display = "inline-block";
+        if (userNameEl) { const name = user.displayName || user.email || "사용자"; userNameEl.textContent = name; userNameEl.style.display = "inline-block"; }
+      } else {
+        if (loginBtn) loginBtn.style.display = "inline-block";
+        if (signupBtn) signupBtn.style.display = "inline-block";
+        if (logoutBtn) logoutBtn.style.display = "none";
+        if (userNameEl) { userNameEl.textContent = ""; userNameEl.style.display = "none"; }
+      }
+    }
+
+    document.getElementById("signupSubmit").addEventListener("click", async () => {
+      const nickname = document.getElementById("signupNickname").value;
+      const email = document.getElementById("signupEmail").value;
+      const pass = document.getElementById("signupPass").value;
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(userCredential.user, { displayName: nickname });
+        updateHeader(userCredential.user);
+        alert("회원가입 완료!");
+        closeModal("signupModal");
+      } catch (error) {
+        alert("회원가입 실패: " + error.message);
+      }
+    });
+
+    document.getElementById("loginSubmit").addEventListener("click", async () => {
+      const email = document.getElementById("loginEmail").value;
+      const pass = document.getElementById("loginPass").value;
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+        updateHeader(userCredential.user);
+        alert("로그인 성공!");
+        closeModal("loginModal");
+      } catch (error) {
+        alert("로그인 실패: " + error.message);
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => { await signOut(auth); updateHeader(null); });
+
+    onAuthStateChanged(auth, (user) => { updateHeader(user); });
+  </script>
+
+  <!-- 비밀번호 보기 토글 및 모달 간 이동 (원본 로직 재사용) -->
+  <script>
+    (function(){
+      document.querySelectorAll('.pw-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-target');
+          if (!targetId) return;
+          const input = document.getElementById(targetId);
+          if (!input) return;
+
+          if (input.type === 'password') {
+            input.type = 'text';
+            const eye = btn.querySelector('.icon-eye');
+            const eyeOff = btn.querySelector('.icon-eye-off');
+            if (eye) eye.style.display = 'none';
+            if (eyeOff) eyeOff.style.display = 'block';
+            btn.setAttribute('aria-pressed','true');
+            btn.title = "비밀번호 숨기기";
+          } else {
+            input.type = 'password';
+            const eye = btn.querySelector('.icon-eye');
+            const eyeOff = btn.querySelector('.icon-eye-off');
+            if (eye) eye.style.display = 'block';
+            if (eyeOff) eyeOff.style.display = 'none';
+            btn.setAttribute('aria-pressed','false');
+            btn.title = "비밀번호 보기";
+          }
+        });
+      });
+
+      const openSignupFromLogin = document.getElementById('openSignupFromLogin');
+      if (openSignupFromLogin) openSignupFromLogin.addEventListener('click', () => { closeModal('loginModal'); openModal('signupModal'); });
+      const openLoginFromSignup = document.getElementById('openLoginFromSignup');
+      if (openLoginFromSignup) openLoginFromSignup.addEventListener('click', () => { closeModal('signupModal'); openModal('loginModal'); });
+    })();
+  </script>
+
+  <!-- 현재 사용자의 공인 IP 조회 및 표시 -->
+  <script>
+    (function(){
+      const ipEl = document.getElementById('currentIp');
+      async function fetchIp(){
+        try{
+          const res = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+          if (!res.ok) throw new Error('IP 조회 실패');
+          const j = await res.json();
+          const ip = j && j.ip ? j.ip : null;
+          ipEl.textContent = '현재 IP : ' + (ip || '(조회 불가)');
+        }catch(e){
+          ipEl.textContent = '현재 IP : (조회 실패)';
+        }
+      }
+      fetchIp();
+    })();
+  </script>
+
+</body>
+</html>
