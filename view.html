@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>게시글 보기 - 유피드 밴블리온</title>
+  <style>
+    /* --- (원본 CSS를 그대로 유지, 사이트 스타일 100% 일치) --- */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; padding: 0; background-color: #1c1c1c; color: #fff; font-family: Arial, sans-serif; -webkit-font-smoothing:antialiased; }
+
+    .site-content {
+      width: 100%;
+      max-width: 970px;
+      margin: 0 auto;
+      padding: 0 12px;
+    }
+
+    header {
+      background-color: #003d80;
+      color: white;
+      padding: 11px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header .logo { font-size: 19.8px; font-weight: bold; }
+    header .auth-buttons a { color: white; text-decoration: none; margin-left: 15px; font-weight: bold; font-size: 15.4px; transition: color .3s; cursor:pointer; }
+    header .auth-buttons a:hover { color: #ffcc00; }
+
+    /* 게시글 박스 스타일 */
+    .post-wrap {
+      margin: 30px auto;
+      background-color: #242424;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+      padding: 22px;
+    }
+    .post-meta { color:#ccc; font-size:13px; margin-bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .author-block { display:flex; gap:12px; align-items:center; cursor:pointer; }
+    .author-avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.06); background:#111; flex:0 0 auto; }
+    .post-title { font-size:22px; color:#ffea8a; margin:8px 0 8px 0; word-break:break-word; }
+    .post-author { color:#ddd; font-weight:700; display:inline-flex; gap:8px; align-items:center; }
+    .role-tag { background:#ffcc00; color:#000; padding:3px 8px; border-radius:8px; font-weight:700; font-size:12px; }
+    .post-date { color:#bbb; font-size:13px; }
+    .post-content { color:#eaeaea; margin-top:16px; line-height:1.7; white-space:pre-wrap; word-break:break-word; }
+    .post-actions { margin-top:18px; display:flex; gap:10px; align-items:center; }
+    .btn { padding:8px 12px; border-radius:8px; background:transparent; color:#ddd; border:1px solid rgba(255,255,255,0.06); cursor:pointer; font-weight:700; }
+    .btn.primary { background: linear-gradient(90deg,#0f61b0,#0a3e7a); color:#fff; border:1px solid rgba(255,255,255,0.03); }
+
+    /* 댓글 영역 */
+    .comments-wrap { margin-top:22px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.02); }
+    .comment-form { display:flex; gap:10px; align-items:flex-start; margin-bottom:12px; }
+    .comment-input { flex:1; min-height:48px; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.35); color:#fff; resize:vertical; }
+    .comment-submit { padding:8px 12px; border-radius:8px; background:#0f61b0; color:#fff; border:0; cursor:pointer; font-weight:700; }
+
+    .comment-item { display:flex; gap:10px; padding:10px 6px; border-bottom:1px solid rgba(255,255,255,0.02); align-items:flex-start; }
+    .comment-author-avatar { width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.04); background:#111; flex:0 0 auto; }
+    .comment-body { flex:1; }
+    .comment-head { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+    .comment-author-name { font-weight:700; color:#fff; font-size:14px; }
+    .comment-date { color:#bbb; font-size:12px; margin-left:6px; }
+    .comment-content { color:#e6e6e6; font-size:14px; line-height:1.5; white-space:pre-wrap; word-break:break-word; }
+    .comment-actions { margin-top:8px; display:flex; gap:10px; align-items:center; }
+    .like-btn { background:transparent; border:0; color:#ddd; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:8px; }
+    .like-btn.liked { color:#ffae42; }
+
+    /* 관리자 제어바 (작게 추가) */
+    .admin-control { margin: 14px auto; max-width: 970px; padding: 8px 12px; display:flex; gap:8px; align-items:center; color:#ddd; }
+    .admin-control input { background:#1b1b1b; border:1px solid rgba(255,255,255,0.05); color:#fff; padding:8px; border-radius:8px; flex:1; }
+    .admin-control button { padding:8px 10px; border-radius:8px; background:#0f61b0; color:#fff; border:0; cursor:pointer; font-weight:700; }
+
+    /* 로그인/회원가입 모달, pw-toggle 등 원본 스타일 유지 */
+    .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center; padding:20px; box-sizing:border-box; }
+    .modal-content { width:420px; max-width: calc(100% - 40px); background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:18px; border-radius:12px; color:white; box-shadow:0 10px 30px rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.03); backdrop-filter: blur(6px) saturate(120%); display:flex; flex-direction:column; gap:12px; }
+    .modal-close { position: absolute; top: 10px; right: 10px; background: transparent; color: #ddd; border: none; cursor: pointer; font-size: 20px; padding: 6px; border-radius: 8px; transition: background .15s, color .15s; z-index: 1010; }
+    .modal-close:hover { background: rgba(255,255,255,0.02); color:#fff; }
+    .modal-inner { display:flex; gap:12px; align-items:center; }
+    .modal-brand img { width:56px; height:56px; border-radius:8px; flex:0 0 auto; }
+
+    .field { display:block; margin-top:8px; width:100%; }
+    input[type="email"], input[type="password"], input[type="text"] { width:100%; margin:8px 0 0 0; padding:12px 44px 12px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.4); color:#fff; outline:none; font-size:14px; box-sizing:border-box; }
+
+    .password-field { position: relative; }
+    .password-field .pw-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: #ddd;
+      padding: 6px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pw-toggle svg { width:18px; height:18px; display:block; }
+    .pw-toggle .icon-eye-off { display: none; }
+
+    .modal-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:8px; }
+    .alt-btn { flex:1; padding:8px 10px; background:transparent; border:1px solid rgba(255,255,255,0.06); color:#ddd; border-radius:8px; font-size:13px; cursor:pointer; }
+    .primary-btn { width:100%; background: linear-gradient(90deg,#0f61b0,#0a3e7a); color:#fff; box-shadow:0 6px 18px rgba(15,97,176,0.16); border:1px solid rgba(255,255,255,0.03); padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:bold; }
+
+    /* Profile modal specific */
+    .profile-modal .modal-content { width:720px; max-width: calc(100% - 40px); padding:0; overflow:hidden; }
+    .profile-top { position:relative; height:160px; background:#111; display:flex; align-items:flex-end; }
+    .profile-banner { width:100%; height:100%; object-fit:cover; display:block; }
+    .profile-top-inner { position:absolute; left:18px; bottom:-34px; display:flex; gap:16px; align-items:center; }
+    .profile-top-inner .profile-avatar { width:68px; height:68px; border-radius:50%; border:3px solid #111; object-fit:cover; background:#222; }
+    .profile-top-inner .profile-meta { color:#fff; }
+    .profile-nick { font-size:20px; font-weight:800; display:flex; gap:8px; align-items:center; }
+    .profile-role { background:#ffcc00; color:#000; padding:4px 8px; border-radius:8px; font-weight:700; font-size:12px; }
+    .profile-bio { font-size:13px; color:#ddd; margin-top:6px; max-width:520px; }
+
+    .profile-body { padding:54px 18px 18px 18px; display:flex; flex-direction:column; gap:12px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); }
+    .profile-stats { display:flex; gap:12px; align-items:center; }
+    .profile-stats .stat { font-weight:700; color:#fff; }
+    .profile-actions { margin-left:auto; }
+    .follow-btn { padding:8px 12px; border-radius:8px; background:#0f61b0; color:#fff; border:0; cursor:pointer; font-weight:800; }
+
+    .activity-note { text-align:center; color:#bbb; font-size:13px; padding:14px 0; border-top:1px dashed rgba(255,255,255,0.03); }
+
+    footer { background:#111; color:#ccc; font-size:12px; padding:20px; text-align:center; line-height:1.5; margin-top:40px; }
+    footer a { color:#ccc; text-decoration:none; margin:0 4.5px; }
+    @media (max-width:600px) {
+      .post-title { font-size:18px; }
+      .post-wrap { padding:16px; margin:18px 12px; }
+      .author-avatar { width:40px; height:40px; }
+      .admin-control { padding:8px; gap:6px; }
+      .profile-modal .modal-content { width:calc(100% - 20px); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- === header (원본과 동일) === -->
+  <header>
+    <a href="index.html" class="logo" aria-label="홈으로 이동" style="color:inherit; text-decoration:none;">BANBLE LEON</a>
+    <div class="auth-buttons">
+      <a onclick="openModal('loginModal')">로그인</a>
+      <a onclick="openModal('signupModal')">회원가입</a>
+      <a id="logoutBtn" style="display:none;cursor:pointer;">로그아웃</a>
+      <span id="userName" style="margin-left:15px; font-weight:bold; color:#ffcc00; display:none;"></span>
+    </div>
+  </header>
+
+  <!-- === 관리자 제어바: 어떤 게시글을 뷰어링할지 설정 (추가) === -->
+  <div class="admin-control" role="region" aria-label="관리자 게시글 선택">
+    <input id="adminPostIdInput" type="text" placeholder="뷰어에 표시할 gaesi 문서 ID를 입력하세요 (예: osQ0GPHi5GRRFOIRNpW0)">
+    <button id="adminSetBtn">설정</button>
+    <button id="adminClearBtn" style="background:#444;color:#fff;border-radius:8px;padding:8px 10px;border:0;cursor:pointer;font-weight:700;">초기화</button>
+  </div>
+
+  <!-- === main content: 게시글 뷰어만 남김 === -->
+  <div class="site-content">
+    <div class="post-wrap" id="postWrap" aria-live="polite">
+
+      <!-- 작성자 프로필/이름/날짜 (요청: 제목 위로) -->
+      <div class="post-meta" style="margin-bottom:6px;">
+        <div class="author-block" style="flex:1;" id="authorBlock" role="button" tabindex="0" aria-label="작성자 프로필 보기">
+          <img id="authorAvatar" class="author-avatar" src="https://via.placeholder.com/48?text=?" alt="작성자 프로필">
+          <div>
+            <div id="author" class="post-author"></div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <div id="createdAt" class="post-date"></div>
+              <div id="postViewCount" class="post-date" style="margin-left:8px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 제목 (아래로 이동) -->
+      <h1 class="post-title" id="title">로딩 중...</h1>
+
+      <div class="post-content" id="content">게시글 내용을 불러오는 중입니다.</div>
+
+      <!-- 이미지 갤러리 (이미지를 가로폭에 맞게 크게 표시) -->
+      <div id="imageGallery" style="margin-top:16px; display:flex; gap:8px; flex-direction:column;"></div>
+
+      <!-- 좋아요 버튼 및 북마크 버튼 (요청: 내용/이미지 아래로 이동) -->
+      <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
+        <button id="postLikeBtn" class="btn" title="좋아요"><span id="postLikeLabel">♡ 좋아요</span> <span id="postLikeCount" style="margin-left:8px;color:#ffae42;">0</span></button>
+        <button id="postBookmarkBtn" class="btn" title="북마크"><span id="postBookmarkLabel">🔖 북마크</span> <span id="postBookmarkCount" style="margin-left:8px;color:#ffae42;">0</span></button>
+        <!-- 목록으로 버튼은 요청에 따라 제거 -->
+      </div>
+
+      <!-- 댓글 섹션 -->
+      <div class="comments-wrap" id="commentsWrap" aria-live="polite">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-weight:800; color:#ffae42;">댓글</div>
+          <div id="commentsCount" style="color:#bbb;">0</div>
+        </div>
+
+        <div id="commentFormArea" style="margin-bottom:12px;">
+          <div class="comment-form">
+            <textarea id="commentInput" class="comment-input" placeholder="댓글을 작성하려면 로그인 후 입력하세요." rows="2" disabled></textarea>
+            <button id="commentSubmit" class="comment-submit">등록</button>
+          </div>
+        </div>
+
+        <div id="commentsList"></div>
+      </div>
+
+      <div class="post-actions" id="postActions" style="display:none;">
+        <!-- 추가 액션 버튼들(로그인한 작성자에게 노출 등)은 여기 넣을 수 있습니다 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- === 로그인 모달 (원본과 동일) === -->
+  <div id="loginModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="loginTitle">
+    <div class="modal-content" role="document">
+      <button class="modal-close" onclick="closeModal('loginModal')" aria-label="닫기">&times;</button>
+      <div class="modal-inner">
+        <div class="modal-brand">
+          <img src="https://i.imgur.com/FzKC3OX.png" alt="브랜드" style="width:56px;height:56px;border-radius:8px;">
+          <div>
+            <h2 id="loginTitle">로그인</h2>
+            <p>계정으로 로그인하여 유피드 홀을 이용하세요.</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="field">
+          <input type="email" id="loginEmail" placeholder="이메일" />
+        </label>
+
+        <label class="field password-field">
+          <input type="password" id="loginPass" placeholder="비밀번호" />
+          <button type="button" class="pw-toggle" data-target="loginPass" aria-label="비밀번호 보기" title="비밀번호 보기">
+            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M1.5 12C1.5 12 5.5 4 12 4s10.5 8 10.5 8-4 8-10.5 8S1.5 12 1.5 12Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17.94 17.94C16.31 19.05 14.24 19.74 12 19.74 6.5 19.74 2 12 2 12s2.41-3.32 6.07-5.24" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9.88 9.88A3 3 0 0114.12 14.12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </label>
+
+        <div class="modal-actions">
+          <label style="font-size:13px;color:#ccc;"><input type="checkbox" id="rememberMe" style="margin-right:6px;"/> 로그인 유지</label>
+        </div>
+
+        <button id="loginSubmit" class="primary-btn">로그인</button>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="openSignupFromLogin" class="alt-btn" type="button">계정 만들기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === 회원가입 모달 (원본과 동일) === -->
+  <div id="signupModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="signupTitle">
+    <div class="modal-content" role="document">
+      <button class="modal-close" onclick="closeModal('signupModal')" aria-label="닫기">&times;</button>
+      <div class="modal-inner">
+        <div class="modal-brand">
+          <img src="https://i.imgur.com/5fdGvm7.png" alt="회원가입" style="width:56px;height:56px;border-radius:8px;">
+          <div>
+            <h2 id="signupTitle">유피드 계정 생성</h2>
+            <p>밴블리온의 유피드 서비스에 가입하세요</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="field">
+          <input type="text" id="signupNickname" placeholder="닉네임" />
+        </label>
+        <label class="field">
+          <input type="email" id="signupEmail" placeholder="이메일" />
+        </label>
+        <label class="field password-field">
+          <input type="password" id="signupPass" placeholder="비밀번호" />
+          <button type="button" class="pw-toggle" data-target="signupPass" aria-label="비밀번호 보기" title="비밀번호 보기">
+            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M1.5 12C1.5 12 5.5 4 12 4s10.5 8 10.5 8-4 8-10.5 8S1.5 12 1.5 12Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17.94 17.94C16.31 19.05 14.24 19.74 12 19.74 6.5 19.74 2 12 2 12s2.41-3.32 6.07-5.24" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9.88 9.88A3 3 0 0114.12 14.12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </label>
+
+        <button id="signupSubmit" class="primary-btn">회원가입</button>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="openLoginFromSignup" class="alt-btn" type="button">로그인 하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === Profile Modal (새로 추가) === -->
+  <div id="profileModal" class="modal profile-modal" aria-hidden="true" role="dialog" aria-labelledby="profileTitle">
+    <div class="modal-content" role="document" style="position:relative;">
+      <button class="modal-close" onclick="closeModal('profileModal')" aria-label="닫기">&times;</button>
+
+      <div class="profile-top" aria-hidden="false">
+        <img id="profileBanner" class="profile-banner" src="https://via.placeholder.com/720x160?text=Banner" alt="프로필 배너">
+        <div class="profile-top-inner">
+          <img id="profileAvatar" class="profile-avatar profile-avatar" src="https://via.placeholder.com/68?text=?" alt="프로필 사진">
+          <div class="profile-meta">
+            <div class="profile-nick" id="profileNickname">사용자</div>
+            <div id="profileBio" class="profile-bio">소개가 없습니다.</div>
+          </div>
+          <div class="profile-actions" style="margin-left:16px;">
+            <button id="followBtn" class="follow-btn" style="display:none;">팔로우</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-body" aria-live="polite">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="profile-stats">
+            <div class="stat" id="followersCount">팔로워 0</div>
+            <div class="stat" id="followingCount">팔로잉 0</div>
+          </div>
+        </div>
+
+        <div style="margin-top:6px;">
+          <div style="font-weight:700; margin-bottom:6px;">활동 탭</div>
+          <div style="font-size:13px; color:#bbb;">(멤버의 활동 데시보드 탭은 승인된 IP에게 제공되는 기능입니다.)</div>
+        </div>
+
+        <div class="activity-note">활동 관련 기능은 현재 준비중입니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === footer (원본과 동일) === -->
+  <footer>
+    <a href="library.html?section=terms">이용약관</a> |
+    <a href="library.html?section=privacy">개인정보 처리방침</a> |
+    <a href="library.html?section=server">유피드 자산 데이터 서버 지침</a> |
+    <a href="library.html?section=notice">밴블리온 운영부 고지 사항</a> |
+    <a href="library.html?section=community">커뮤니티 가이드라인</a>
+
+    <div style="margin-top:9px;">
+      유피드는 밴블리온 사 프로그램 개발 부서 "에너자이저"의 공식 인트라넷 플랫폼으로, 모든 사이트 내 정보는 사이트 자산사의 목적에 한해 제한되고 관리될 수 있습니다.
+    </div>
+    <div style="margin-top:9px;">
+      경기도 수원시 밴블리온 수원 지부 미공개 위치<br>
+      help@upid.org | 오픈 소스 라이선스<br>
+      ©UPID Foundation.
+    </div>
+
+    <div style="margin-top:15px; display:flex; justify-content:center; flex-wrap:wrap; gap:15px;">
+      <img src="https://i.imgur.com/cNs1Eg7.png" alt="Logo1" style="height:30px;">
+      <img src="https://i.imgur.com/SF42CN6.png" alt="Logo2" style="height:30px;">
+      <img src="https://i.imgur.com/2pz9w9f.png" alt="Logo3" style="height:30px;">
+      <img src="https://i.imgur.com/SfRsyh4.png" alt="Logo4" style="height:30px;">
+      <img src="https://i.imgur.com/IS5OcvD.png" alt="Logo5" style="height:30px;">
+      <img src="https://i.imgur.com/7uI8nfn.png" alt="Logo6" style="height:30px;">
+      <img src="https://i.imgur.com/yccwqmB.png" alt="Logo7" style="height:30px;">
+      <img src="https://i.imgur.com/mHH406e.png" alt="Logo8" style="height:30px;">
+      <img src="https://i.imgur.com/tc4GZfM.png" alt="Logo9" style="height:30px;">
+      <div style="width:1px; height:30px; background:#444;"></div>
+      <img src="https://i.imgur.com/cHJBLaF.png" alt="Logo10" style="height:30px;">
+    </div>
+  </footer>
+
+  <!-- === 스크립트: Firebase 초기화, Auth, Firestore, 게시글/댓글/좋아요 로직 === -->
+  <script type="module">
+    // Firebase 모듈 (버전은 원본의 auth와 맞춰 10.12.2 사용)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      collection,
+      addDoc,
+      query,
+      orderBy,
+      onSnapshot,
+      serverTimestamp,
+      setDoc,
+      deleteDoc,
+      updateDoc,
+      increment,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // --- firebaseConfig (에란다 제공) ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJZle3txhhthWgaIWTTHzrLl4bkJqQye4",
+      authDomain: "fast-gateway-290809.firebaseapp.com",
+      projectId: "fast-gateway-290809",
+      storageBucket: "fast-gateway-290809.firebasestorage.app",
+      messagingSenderId: "640433110514",
+      appId: "1:640433110514:web:8fe4fafc9a987b6a4b3f6b",
+      measurementId: "G-2V57XWX7CW"
+    };
+
+    // 초기화
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // 전역 현재 사용자 참조
+    let currentUser = null;
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      updateHeader(user);
+      // 댓글 입력 활성화/비활성화
+      const commentInput = document.getElementById('commentInput');
+      const commentSubmit = document.getElementById('commentSubmit');
+      if (commentInput && commentSubmit) {
+        if (user) {
+          commentInput.disabled = false;
+          commentInput.placeholder = "댓글을 입력하세요.";
+        } else {
+          commentInput.disabled = true;
+          commentInput.placeholder = "댓글을 작성하려면 로그인 후 입력하세요.";
+        }
+      }
+      // 좋아요/북마크 버튼 상태 렌더링은 별도 리스너가 처리
+      // 프로필 모달 팔로우 버튼 상태도 필요시 갱신 (모달 열릴 때 갱신)
+    });
+
+    // --- 공통 UI 함수 (전역 노출) ---
+    window.openModal = function(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "flex";
+    };
+    window.closeModal = function(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    };
+
+    function updateHeader(user) {
+      const userNameEl = document.getElementById("userName");
+      const loginBtn = document.querySelector(".auth-buttons a[onclick*='loginModal']");
+      const signupBtn = document.querySelector(".auth-buttons a[onclick*='signupModal']");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      if (user) {
+        if (loginBtn) loginBtn.style.display = "none";
+        if (signupBtn) signupBtn.style.display = "none";
+        if (logoutBtn) logoutBtn.style.display = "inline-block";
+
+        if (userNameEl) {
+          const name = user.displayName || user.email || "사용자";
+          userNameEl.textContent = name;
+          userNameEl.style.display = "inline-block";
+        }
+      } else {
+        if (loginBtn) loginBtn.style.display = "inline-block";
+        if (signupBtn) signupBtn.style.display = "inline-block";
+        if (logoutBtn) logoutBtn.style.display = "none";
+
+        if (userNameEl) {
+          userNameEl.textContent = "";
+          userNameEl.style.display = "none";
+        }
+      }
+    }
+
+    // --- 회원가입 / 로그인 / 로그아웃 이벤트 바인딩 ---
+    document.getElementById("signupSubmit").addEventListener("click", async () => {
+      const nickname = document.getElementById("signupNickname").value;
+      const email = document.getElementById("signupEmail").value;
+      const pass = document.getElementById("signupPass").value;
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(userCredential.user, { displayName: nickname });
+        // optionally create users collection doc
+        try {
+          const userDocRef = doc(db, 'users', userCredential.user.uid);
+          await setDoc(userDocRef, {
+            displayName: nickname || null,
+            email: email || null,
+            photoURL: userCredential.user.photoURL || null,
+            createdAt: serverTimestamp()
+          }, { merge: true });
+        } catch (_) { /* ignore */ }
+        updateHeader(userCredential.user);
+        alert("회원가입 완료!");
+        closeModal("signupModal");
+      } catch (error) {
+        alert("회원가입 실패: " + error.message);
+      }
+    });
+
+    document.getElementById("loginSubmit").addEventListener("click", async () => {
+      const email = document.getElementById("loginEmail").value;
+      const pass = document.getElementById("loginPass").value;
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+        updateHeader(userCredential.user);
+        alert("로그인 성공!");
+        closeModal("loginModal");
+      } catch (error) {
+        alert("로그인 실패: " + error.message);
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+        updateHeader(null);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    // --- 게시글 / 댓글 / 좋아요 로직 (동적 post 선택 지원) ---
+    // 우선순위: URL ?id=XXX  -> localStorage 'selectedPostId' -> 기본 테스트 ID
+    let currentPostId = (new URLSearchParams(window.location.search).get('id')) 
+                        || (localStorage.getItem('selectedPostId')) 
+                        || "osQ0GPHi5GRRFOIRNpW0";
+
+    // 현재 게시글의 authorId (프로필 모달 열기용)
+    let currentAuthorId = null;
+
+    // UI: 관리자 입력 컨트롤
+    const adminInput = document.getElementById('adminPostIdInput');
+    const adminSetBtn = document.getElementById('adminSetBtn');
+    const adminClearBtn = document.getElementById('adminClearBtn');
+
+    // 초기 관리자 input 값
+    if (adminInput) adminInput.value = currentPostId || '';
+
+    adminSetBtn.addEventListener('click', async () => {
+      const v = (adminInput.value || '').trim();
+      if (!v) { alert('문서 ID를 입력하세요'); return; }
+      try {
+        await setCurrentPostId(v);
+        // 반영되었음을 사용자에게 보여줌
+        adminInput.value = currentPostId;
+      } catch (e) {
+        console.error(e);
+        alert('문서 로드 중 오류가 발생했습니다.');
+      }
+    });
+
+    adminClearBtn.addEventListener('click', async () => {
+      localStorage.removeItem('selectedPostId');
+      // if URL had id param, remove it
+      const url = new URL(window.location.href);
+      url.searchParams.delete('id');
+      history.replaceState({}, '', url.toString());
+      // set to default
+      await setCurrentPostId("osQ0GPHi5GRRFOIRNpW0");
+      adminInput.value = currentPostId;
+    });
+
+    // 함수: 변경 적용 (async로 만들어 initPost가 끝날 때까지 기다릴 수 있음)
+    async function setCurrentPostId(newId) {
+      if (!newId) return;
+      // save to localStorage
+      localStorage.setItem('selectedPostId', newId);
+      // update URL param without reload
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', newId);
+      history.replaceState({}, '', url.toString());
+      // update variable
+      currentPostId = newId;
+      // refresh UI and listeners (initPost는 내부적으로 getDoc을 기다림)
+      await initPost();
+    }
+
+    // UI 요소
+    const titleEl = document.getElementById('title');
+    const contentEl = document.getElementById('content');
+    const authorEl = document.getElementById('author');
+    const createdAtEl = document.getElementById('createdAt');
+    const authorAvatarEl = document.getElementById('authorAvatar');
+    const galleryEl = document.getElementById('imageGallery');
+
+    const postLikeBtn = document.getElementById('postLikeBtn');
+    const postLikeLabel = document.getElementById('postLikeLabel');
+    const postLikeCountEl = document.getElementById('postLikeCount');
+    const postBookmarkBtn = document.getElementById('postBookmarkBtn');
+    const postBookmarkLabel = document.getElementById('postBookmarkLabel');
+    const postBookmarkCountEl = document.getElementById('postBookmarkCount');
+    const postViewCountEl = document.getElementById('postViewCount');
+
+    const commentInput = document.getElementById('commentInput');
+    const commentSubmit = document.getElementById('commentSubmit');
+    const commentsList = document.getElementById('commentsList');
+    const commentsCountEl = document.getElementById('commentsCount');
+
+    // 상태 및 리스너 해제 핸들
+    let postLikeListenerUnsub = null;
+    let commentsListenerUnsub = null;
+    let postBookmarkListenerUnsub = null;
+    let postLikedByCurrentUser = false;
+    let postBookmarkedByCurrentUser = false;
+
+    // Load post data once and set up listeners (안전: 이전 리스너 해제)
+    async function initPost() {
+      // unsubscribe previous listeners (if any)
+      try {
+        if (postLikeListenerUnsub) { postLikeListenerUnsub(); postLikeListenerUnsub = null; }
+        if (commentsListenerUnsub) { commentsListenerUnsub(); commentsListenerUnsub = null; }
+        if (postBookmarkListenerUnsub) { postBookmarkListenerUnsub(); postBookmarkListenerUnsub = null; }
+      } catch (e) { /* ignore */ }
+
+      // clear UI while loading
+      titleEl.innerText = '로딩 중...';
+      contentEl.innerText = '';
+      authorEl.innerText = '';
+      createdAtEl.innerText = '';
+      authorAvatarEl.src = 'https://via.placeholder.com/48?text=?';
+      galleryEl.innerHTML = '';
+      commentsList.innerHTML = '';
+      commentsCountEl.innerText = '0';
+      postLikeCountEl.innerText = '0';
+      postBookmarkCountEl.innerText = '0';
+      postViewCountEl.innerText = '';
+      postLikedByCurrentUser = false;
+      postBookmarkedByCurrentUser = false;
+      renderPostLikeButton();
+      renderPostBookmarkButton();
+
+      try {
+        const postDocRef = doc(db, 'gaesi', currentPostId);
+        const snap = await getDoc(postDocRef);
+        if (!snap.exists()) {
+          titleEl.innerText = '게시글을 찾을 수 없습니다.';
+          contentEl.innerText = '';
+          postViewCountEl.innerText = '';
+          return;
+        }
+        const data = snap.data();
+
+        titleEl.innerText = data.title || '(제목 없음)';
+
+        // 작성자 정보: data.authorId 우선 -> users 컬렉션 조회
+        let authorName = data.author || '';
+        let authorProfile = data.authorProfileUrl || '';
+        currentAuthorId = data.authorId || null;
+        if (data.authorId) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', data.authorId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              authorName = userData.displayName || authorName || userData.email || '';
+              authorProfile = userData.photoURL || authorProfile || '';
+            }
+          } catch (e) { /* ignore */ }
+        }
+        // author display with possible notice tag
+        authorEl.innerHTML = '';
+        const nameNode = document.createElement('span');
+        nameNode.textContent = authorName ? `${authorName}` : '';
+        nameNode.style.cursor = 'pointer';
+        nameNode.addEventListener('click', (ev) => { ev.stopPropagation(); openProfileModalFor(currentAuthorId); });
+        authorEl.appendChild(nameNode);
+
+        // show notice tag if post is notice (data.notice === true or data.isNotice)
+        const isNotice = data.notice === true || data.isNotice === true || data.isPinned === true;
+        if (isNotice) {
+          const tag = document.createElement('span');
+          tag.className = 'role-tag';
+          tag.style.marginLeft = '8px';
+          tag.textContent = '공지';
+          authorEl.appendChild(tag);
+        }
+
+        if (authorProfile) {
+          authorAvatarEl.src = authorProfile;
+        } else {
+          authorAvatarEl.src = 'https://via.placeholder.com/48?text=?';
+        }
+
+        // createdAt
+        if (data.createdAt) {
+          let date;
+          if (typeof data.createdAt.toDate === 'function') {
+            date = data.createdAt.toDate();
+          } else {
+            date = new Date(data.createdAt);
+          }
+          createdAtEl.innerText = date && !isNaN(date.getTime()) ? date.toLocaleString() : '';
+        } else {
+          createdAtEl.innerText = '';
+        }
+
+        // viewCount 표시 (서버 필드: viewCount)
+        const viewCountVal = (typeof data.viewCount === 'number') ? data.viewCount : 0;
+        postViewCountEl.innerText = `조회수 ${viewCountVal}`;
+
+        // content
+        if (data.contentHtml) {
+          contentEl.innerHTML = data.contentHtml;
+        } else {
+          contentEl.innerText = data.content || '(내용 없음)';
+        }
+
+        // images - make them full width and keep aspect ratio; rounded corners preserved
+        galleryEl.innerHTML = '';
+        if (data.imageUrls && Array.isArray(data.imageUrls) && data.imageUrls.length) {
+          data.imageUrls.slice(0,6).forEach((u,i) => {
+            const img = document.createElement('img');
+            img.src = u;
+            img.alt = `이미지 ${i+1}`;
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.objectFit = 'cover';
+            img.style.borderRadius = '8px';
+            img.style.border = '1px solid rgba(255,255,255,0.04)';
+            img.loading = 'lazy';
+            galleryEl.appendChild(img);
+          });
+        } else if (data.imageUrl) {
+          const img = document.createElement('img');
+          img.src = data.imageUrl;
+          img.alt = '이미지';
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.style.objectFit = 'cover';
+          img.style.borderRadius = '8px';
+          img.style.border = '1px solid rgba(255,255,255,0.04)';
+          img.loading = 'lazy';
+          galleryEl.appendChild(img);
+        }
+
+        // author avatar/name click: open profile modal
+        const authorBlock = document.getElementById('authorBlock');
+        if (authorBlock) {
+          authorBlock.onclick = () => openProfileModalFor(currentAuthorId);
+          authorBlock.onkeypress = (ev) => { if (ev.key === 'Enter') openProfileModalFor(currentAuthorId); };
+        }
+
+        // set up likes listener (count + whether currentUser liked)
+        setupPostLikesListener();
+
+        // set up bookmarks listener (count + whether currentUser bookmarked)
+        setupPostBookmarksListener();
+
+        // set up comments real-time listener
+        setupCommentsListener();
+
+        // increment viewCount on first view this session (sessionStorage 기반)
+        try {
+          const viewedKey = `viewed_post_${currentPostId}`;
+          if (!sessionStorage.getItem(viewedKey)) {
+            // increment server-side
+            try {
+              await updateDoc(postDocRef, { viewCount: increment(1) });
+              // reflect change in UI (optimistic)
+              const newVal = viewCountVal + 1;
+              postViewCountEl.innerText = `조회수 ${newVal}`;
+            } catch (e) {
+              // update 실패해도 무시(네트워크 등), UI는 서버 상태 그대로 유지
+              console.error('viewCount update failed', e);
+            }
+            sessionStorage.setItem(viewedKey, '1');
+          }
+        } catch (e) {
+          // sessionStorage 실패 시 무시
+          console.error(e);
+        }
+
+        // 완료
+        return;
+      } catch (err) {
+        console.error(err);
+        titleEl.innerText = '게시글을 불러오는 중 오류가 발생했습니다.';
+        contentEl.innerText = '';
+        postViewCountEl.innerText = '';
+        throw err;
+      }
+    }
+
+    // --- Post Likes ---
+    function setupPostLikesListener() {
+      const likesCol = collection(db, 'gaesi', currentPostId, 'likes');
+      if (postLikeListenerUnsub) postLikeListenerUnsub();
+      postLikeListenerUnsub = onSnapshot(likesCol, (snap) => {
+        const likeCount = snap.size;
+        postLikeCountEl.innerText = likeCount;
+        // check if current user liked
+        if (currentUser) {
+          const meLiked = snap.docs.some(d => d.id === currentUser.uid);
+          postLikedByCurrentUser = meLiked;
+          renderPostLikeButton();
+        } else {
+          postLikedByCurrentUser = false;
+          renderPostLikeButton();
+        }
+      }, (err) => {
+        console.error('post likes listener error', err);
+      });
+    }
+
+    function renderPostLikeButton() {
+      if (postLikedByCurrentUser) {
+        postLikeLabel.innerText = '♥ 좋아요 취소';
+        postLikeBtn.classList.add('btn');
+        postLikeBtn.style.color = '#ffae42';
+      } else {
+        postLikeLabel.innerText = '♡ 좋아요';
+        postLikeBtn.style.color = '';
+      }
+    }
+
+    postLikeBtn.addEventListener('click', async () => {
+      if (!currentUser) {
+        openModal('loginModal');
+        return;
+      }
+      const userLikeRef = doc(db, 'gaesi', currentPostId, 'likes', currentUser.uid);
+      try {
+        const existsSnap = await getDoc(userLikeRef);
+        if (existsSnap.exists()) {
+          // unlike
+          await deleteDoc(userLikeRef);
+        } else {
+          // like
+          await setDoc(userLikeRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
+        }
+        // listener will update UI
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    // --- Post Bookmarks (새로 추가: 좋아요와 동일한 방식으로 서버에 저장) ---
+    function setupPostBookmarksListener() {
+      const bookmarksCol = collection(db, 'gaesi', currentPostId, 'bookmarks');
+      if (postBookmarkListenerUnsub) postBookmarkListenerUnsub();
+      postBookmarkListenerUnsub = onSnapshot(bookmarksCol, (snap) => {
+        const bookmarkCount = snap.size;
+        postBookmarkCountEl.innerText = bookmarkCount;
+        if (currentUser) {
+          const meBookmarked = snap.docs.some(d => d.id === currentUser.uid);
+          postBookmarkedByCurrentUser = meBookmarked;
+          renderPostBookmarkButton();
+        } else {
+          postBookmarkedByCurrentUser = false;
+          renderPostBookmarkButton();
+        }
+      }, (err) => {
+        console.error('post bookmarks listener error', err);
+      });
+    }
+
+    function renderPostBookmarkButton() {
+      if (postBookmarkedByCurrentUser) {
+        postBookmarkLabel.innerText = '🔖 북마크 해제';
+        postBookmarkBtn.style.color = '#ffae42';
+      } else {
+        postBookmarkLabel.innerText = '🔖 북마크';
+        postBookmarkBtn.style.color = '';
+      }
+    }
+
+    postBookmarkBtn.addEventListener('click', async () => {
+      if (!currentUser) {
+        openModal('loginModal');
+        return;
+      }
+      const userBookmarkRef = doc(db, 'gaesi', currentPostId, 'bookmarks', currentUser.uid);
+      try {
+        const existsSnap = await getDoc(userBookmarkRef);
+        if (existsSnap.exists()) {
+          // remove bookmark
+          await deleteDoc(userBookmarkRef);
+        } else {
+          // add bookmark
+          await setDoc(userBookmarkRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    });
+
+    // --- Comments: add + real-time render + comment likes ---
+    function setupCommentsListener() {
+      const commentsCol = collection(db, 'gaesi', currentPostId, 'comments');
+      const q = query(commentsCol, orderBy('createdAt', 'asc'));
+      if (commentsListenerUnsub) commentsListenerUnsub();
+      commentsListenerUnsub = onSnapshot(q, (snapshot) => {
+        commentsList.innerHTML = '';
+        commentsCountEl.innerText = `${snapshot.size}`;
+        snapshot.forEach(docSnap => {
+          const c = docSnap.data();
+          const id = docSnap.id;
+          const item = renderCommentItem(id, c);
+          commentsList.appendChild(item);
+          // For each comment, we will render its like count from c.likeCount (kept in doc) and check if current user liked
+        });
+      }, (err) => {
+        console.error('comments listener error', err);
+      });
+    }
+
+    function renderCommentItem(commentId, commentData) {
+      const div = document.createElement('div');
+      div.className = 'comment-item';
+      // avatar
+      const avatar = document.createElement('img');
+      avatar.className = 'comment-author-avatar';
+      avatar.src = commentData.authorProfileUrl || 'https://via.placeholder.com/40?text=?';
+      avatar.alt = '프로필';
+      // body
+      const body = document.createElement('div');
+      body.className = 'comment-body';
+
+      const head = document.createElement('div');
+      head.className = 'comment-head';
+      const name = document.createElement('div');
+      name.className = 'comment-author-name';
+      name.innerText = commentData.authorName || '익명';
+      const date = document.createElement('div');
+      date.className = 'comment-date';
+      if (commentData.createdAt) {
+        let d;
+        if (typeof commentData.createdAt.toDate === 'function') d = commentData.createdAt.toDate();
+        else d = new Date(commentData.createdAt);
+        date.innerText = d && !isNaN(d.getTime()) ? d.toLocaleString() : '';
+      } else date.innerText = '';
+
+      head.appendChild(name);
+      head.appendChild(date);
+
+      const content = document.createElement('div');
+      content.className = 'comment-content';
+      content.innerText = commentData.content || '';
+
+      const actions = document.createElement('div');
+      actions.className = 'comment-actions';
+
+      // like button for comment
+      const likeBtn = document.createElement('button');
+      likeBtn.className = 'like-btn';
+      likeBtn.innerHTML = `♡ <span class="c-like-count">${commentData.likeCount || 0}</span>`;
+      likeBtn.title = '공감';
+
+      // check if current user liked this comment
+      async function refreshCommentLikeState() {
+        if (!currentUser) {
+          likeBtn.classList.remove('liked');
+          return;
+        }
+        try {
+          const likeDoc = await getDoc(doc(db, 'gaesi', currentPostId, 'comments', commentId, 'likes', currentUser.uid));
+          if (likeDoc.exists()) likeBtn.classList.add('liked');
+          else likeBtn.classList.remove('liked');
+        } catch (e) {
+          // ignore
+        }
+      }
+      // initial state
+      refreshCommentLikeState();
+
+      // click handler
+      likeBtn.addEventListener('click', async () => {
+        if (!currentUser) {
+          openModal('loginModal');
+          return;
+        }
+        const likeRef = doc(db, 'gaesi', currentPostId, 'comments', commentId, 'likes', currentUser.uid);
+        const commentDocRef = doc(db, 'gaesi', currentPostId, 'comments', commentId);
+        try {
+          const existing = await getDoc(likeRef);
+          if (existing.exists()) {
+            // unlike
+            await deleteDoc(likeRef);
+            // decrement likeCount if field exists
+            try { await updateDoc(commentDocRef, { likeCount: increment(-1) }); } catch (_) {}
+            // update UI immediately
+            const countSpan = likeBtn.querySelector('.c-like-count');
+            if (countSpan) countSpan.innerText = Math.max(0, (commentData.likeCount || 0) - 1);
+            likeBtn.classList.remove('liked');
+          } else {
+            // like
+            await setDoc(likeRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
+            try { await updateDoc(commentDocRef, { likeCount: increment(1) }); } catch (_) {}
+            const countSpan = likeBtn.querySelector('.c-like-count');
+            if (countSpan) countSpan.innerText = (commentData.likeCount || 0) + 1;
+            likeBtn.classList.add('liked');
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      });
+
+      actions.appendChild(likeBtn);
+
+      body.appendChild(head);
+      body.appendChild(content);
+      body.appendChild(actions);
+
+      div.appendChild(avatar);
+      div.appendChild(body);
+
+      return div;
+    }
+
+    // submit comment
+    commentSubmit.addEventListener('click', async () => {
+      if (!currentUser) {
+        openModal('loginModal');
+        return;
+      }
+      const text = commentInput.value && commentInput.value.trim();
+      if (!text) {
+        alert('댓글을 입력하세요.');
+        return;
+      }
+      try {
+        // get author info from users col if exists
+        let authorName = currentUser.displayName || currentUser.email || '사용자';
+        let authorProfile = currentUser.photoURL || '';
+
+        try {
+          const uDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (uDoc.exists()) {
+            const ud = uDoc.data();
+            authorName = ud.displayName || authorName;
+            authorProfile = ud.photoURL || authorProfile;
+          }
+        } catch (e) { /* ignore */ }
+
+        const commentsCol = collection(db, 'gaesi', currentPostId, 'comments');
+        await addDoc(commentsCol, {
+          authorId: currentUser.uid,
+          authorName,
+          authorProfileUrl: authorProfile || '',
+          content: text,
+          createdAt: serverTimestamp(),
+          likeCount: 0
+        });
+        commentInput.value = '';
+        // listener will show it
+      } catch (e) {
+        console.error(e);
+        alert('댓글 작성 중 오류가 발생했습니다.');
+      }
+    });
+
+    // --- Profile modal functionality (users 컬렉션 기반) ---
+    const profileModal = document.getElementById('profileModal');
+    const profileBanner = document.getElementById('profileBanner');
+    const profileAvatar = document.getElementById('profileAvatar');
+    const profileNickname = document.getElementById('profileNickname');
+    const profileBio = document.getElementById('profileBio');
+    const followersCountEl = document.getElementById('followersCount');
+    const followingCountEl = document.getElementById('followingCount');
+    const followBtn = document.getElementById('followBtn');
+
+    // open profile modal for a given userId
+    async function openProfileModalFor(userId) {
+      if (!userId) {
+        alert('해당 사용자의 프로필을 불러올 수 없습니다.');
+        return;
+      }
+      try {
+        await loadProfileIntoModal(userId);
+        openModal('profileModal');
+      } catch (e) {
+        console.error(e);
+        alert('프로필을 불러오는 중 오류가 발생했습니다.');
+      }
+    }
+
+    // load user data into profile modal and setup follow button
+    async function loadProfileIntoModal(userId) {
+      // reset UI
+      profileBanner.src = 'https://via.placeholder.com/720x160?text=Banner';
+      profileAvatar.src = 'https://via.placeholder.com/68?text=?';
+      profileNickname.textContent = '사용자';
+      profileBio.textContent = '';
+      followersCountEl.textContent = '팔로워 0';
+      followingCountEl.textContent = '팔로잉 0';
+      followBtn.style.display = 'none';
+      followBtn.textContent = '팔로우';
+
+      // fetch user doc
+      const userRef = doc(db, 'users', userId);
+      const uSnap = await getDoc(userRef);
+      if (!uSnap.exists()) {
+        profileNickname.textContent = '사용자';
+        profileBio.textContent = '(정보 없음)';
+        return;
+      }
+      const udata = uSnap.data();
+
+      // banner & avatar
+      const bannerUrl = udata.bannerUrl || udata.coverPhoto || '';
+      const avatarUrl = udata.photoURL || udata.avatarUrl || '';
+      if (bannerUrl) profileBanner.src = bannerUrl;
+      if (avatarUrl) profileAvatar.src = avatarUrl;
+
+      profileNickname.textContent = udata.displayName || udata.nickname || udata.email || '사용자';
+      profileBio.textContent = udata.bio || udata.description || '';
+
+      // role tag: if admin or role field present
+      // show small tag next to nickname if admin
+      const role = udata.role || '';
+      // remove existing role tag if any
+      const existingRoleTag = profileNickname.querySelector('.profile-role');
+      if (existingRoleTag) existingRoleTag.remove();
+      if (role && role.toLowerCase() === 'admin') {
+        const span = document.createElement('span');
+        span.className = 'profile-role';
+        span.textContent = '운영자';
+        profileNickname.appendChild(span);
+      }
+
+      // follower/following counts: prefer stored fields, else count subcollections
+      let followerCount = (typeof udata.followerCount === 'number') ? udata.followerCount : null;
+      let followingCount = (typeof udata.followingCount === 'number') ? udata.followingCount : null;
+
+      if (followerCount === null) {
+        try {
+          const docs = await getDocs(collection(db, 'users', userId, 'followers'));
+          followerCount = docs.size;
+        } catch (e) {
+          followerCount = 0;
+        }
+      }
+      if (followingCount === null) {
+        try {
+          const docs2 = await getDocs(collection(db, 'users', userId, 'following'));
+          followingCount = docs2.size;
+        } catch (e) {
+          followingCount = 0;
+        }
+      }
+      followersCountEl.textContent = `팔로워 ${followerCount}`;
+      followingCountEl.textContent = `팔로잉 ${followingCount}`;
+
+      // Follow button: do not show for own profile
+      if (!currentUser || currentUser.uid === userId) {
+        followBtn.style.display = 'none';
+      } else {
+        followBtn.style.display = 'inline-block';
+        // check if currentUser follows this user
+        try {
+          const relDoc = await getDoc(doc(db, 'users', currentUser.uid, 'following', userId));
+          if (relDoc.exists()) {
+            followBtn.textContent = '언팔로우';
+            followBtn.dataset.following = '1';
+          } else {
+            followBtn.textContent = '팔로우';
+            followBtn.dataset.following = '0';
+          }
+        } catch (e) {
+          followBtn.textContent = '팔로우';
+          followBtn.dataset.following = '0';
+        }
+      }
+
+      // attach follow handler
+      followBtn.onclick = async (ev) => {
+        ev.stopPropagation();
+        if (!currentUser) {
+          openModal('loginModal');
+          return;
+        }
+        try {
+          const amFollowing = followBtn.dataset.following === '1';
+          const followingRef = doc(db, 'users', currentUser.uid, 'following', userId);
+          const followerRef = doc(db, 'users', userId, 'followers', currentUser.uid);
+          const userDocRef = doc(db, 'users', userId);
+          const myDocRef = doc(db, 'users', currentUser.uid);
+
+          if (amFollowing) {
+            // unfollow: remove both docs and decrement counts
+            await deleteDoc(followingRef);
+            await deleteDoc(followerRef);
+            try { await updateDoc(userDocRef, { followerCount: increment(-1) }); } catch (_) {}
+            try { await updateDoc(myDocRef, { followingCount: increment(-1) }); } catch (_) {}
+            followBtn.textContent = '팔로우';
+            followBtn.dataset.following = '0';
+            // update counts in UI
+            const currentFollowers = parseInt((followersCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
+            const currentFollowing = parseInt((followingCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
+            followersCountEl.textContent = `팔로워 ${Math.max(0, currentFollowers - 1)}`;
+            // We don't change the target user's following count here; it's for currentUser only
+          } else {
+            // follow: create both docs and increment counts
+            await setDoc(followingRef, { uid: userId, createdAt: serverTimestamp() });
+            await setDoc(followerRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
+            try { await updateDoc(userDocRef, { followerCount: increment(1) }); } catch (_) {}
+            try { await updateDoc(myDocRef, { followingCount: increment(1) }); } catch (_) {}
+            followBtn.textContent = '언팔로우';
+            followBtn.dataset.following = '1';
+            const currentFollowers = parseInt((followersCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
+            followersCountEl.textContent = `팔로워 ${currentFollowers + 1}`;
+          }
+        } catch (e) {
+          console.error(e);
+          alert('팔로우 작업 중 오류가 발생했습니다.');
+        }
+      };
+    }
+
+    // init (처음 로드 시 현재 ID로 게시글을 불러옴)
+    initPost();
+
+    // 모달 간 전환 버튼
+    document.getElementById('openSignupFromLogin').addEventListener('click', () => {
+      closeModal('loginModal');
+      openModal('signupModal');
+    });
+    document.getElementById('openLoginFromSignup').addEventListener('click', () => {
+      closeModal('signupModal');
+      openModal('loginModal');
+    });
+
+  </script>
+
+  <!-- non-module scripts: pw-toggle 동작 및 모달 클릭 이외 닫기 처리 (원본 동작과 동일) -->
+  <script>
+    (function(){
+      document.querySelectorAll('.pw-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-target');
+          if (!targetId) return;
+          const input = document.getElementById(targetId);
+          if (!input) return;
+
+          if (input.type === 'password') {
+            input.type = 'text';
+            const eye = btn.querySelector('.icon-eye');
+            const eyeOff = btn.querySelector('.icon-eye-off');
+            if (eye) eye.style.display = 'none';
+            if (eyeOff) eyeOff.style.display = 'block';
+            btn.setAttribute('aria-pressed','true');
+            btn.title = "비밀번호 숨기기";
+          } else {
+            input.type = 'password';
+            const eye = btn.querySelector('.icon-eye');
+            const eyeOff = btn.querySelector('.icon-eye-off');
+            if (eye) eye.style.display = 'block';
+            if (eyeOff) eyeOff.style.display = 'none';
+            btn.setAttribute('aria-pressed','false');
+            btn.title = "비밀번호 보기";
+          }
+        });
+      });
+
+      // close modal when clicking outside content
+      document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (ev) => {
+          if (ev.target === modal) modal.style.display = 'none';
+        });
+      });
+    })();
+  </script>
+
+</body>
+</html>
