@@ -36,6 +36,7 @@
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.45);
       padding: 22px;
+      position: relative; /* for options button */
     }
     .post-meta { color:#ccc; font-size:13px; margin-bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
     .author-block { display:flex; gap:12px; align-items:center; cursor:pointer; }
@@ -48,6 +49,13 @@
     .post-actions { margin-top:18px; display:flex; gap:10px; align-items:center; }
     .btn { padding:8px 12px; border-radius:8px; background:transparent; color:#ddd; border:1px solid rgba(255,255,255,0.06); cursor:pointer; font-weight:700; }
     .btn.primary { background: linear-gradient(90deg,#0f61b0,#0a3e7a); color:#fff; border:1px solid rgba(255,255,255,0.03); }
+
+    /* three-dot menu */
+    .post-options-btn { position:absolute; top:12px; right:12px; background:transparent; border:0; color:#ddd; font-size:20px; cursor:pointer; padding:6px; border-radius:8px; }
+    .post-options-btn:hover { background: rgba(255,255,255,0.02); color:#fff; }
+    .post-options-menu { position:absolute; top:44px; right:12px; background:#222; border:1px solid rgba(255,255,255,0.04); border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,0.6); overflow:hidden; display:none; z-index:2000; min-width:160px; }
+    .post-options-menu button { width:100%; text-align:left; padding:10px 12px; border:0; background:transparent; color:#ddd; cursor:pointer; font-weight:700; }
+    .post-options-menu button:hover { background: rgba(255,255,255,0.02); color:#fff; }
 
     /* 댓글 영역 */
     .comments-wrap { margin-top:22px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.02); }
@@ -66,10 +74,7 @@
     .like-btn { background:transparent; border:0; color:#ddd; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:8px; }
     .like-btn.liked { color:#ffae42; }
 
-    /* 관리자 제어바 (작게 추가) */
-    .admin-control { margin: 14px auto; max-width: 970px; padding: 8px 12px; display:flex; gap:8px; align-items:center; color:#ddd; }
-    .admin-control input { background:#1b1b1b; border:1px solid rgba(255,255,255,0.05); color:#fff; padding:8px; border-radius:8px; flex:1; }
-    .admin-control button { padding:8px 10px; border-radius:8px; background:#0f61b0; color:#fff; border:0; cursor:pointer; font-weight:700; }
+    /* 관리자 제어바 제거 — (원래 있던 스타일은 유지되나 요소는 제거) */
 
     /* 로그인/회원가입 모달, pw-toggle 등 원본 스타일 유지 */
     .modal { display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); justify-content:center; align-items:center; padding:20px; box-sizing:border-box; }
@@ -132,7 +137,6 @@
       .post-title { font-size:18px; }
       .post-wrap { padding:16px; margin:18px 12px; }
       .author-avatar { width:40px; height:40px; }
-      .admin-control { padding:8px; gap:6px; }
       .profile-modal .modal-content { width:calc(100% - 20px); }
     }
   </style>
@@ -150,16 +154,17 @@
     </div>
   </header>
 
-  <!-- === 관리자 제어바: 어떤 게시글을 뷰어링할지 설정 (추가) === -->
-  <div class="admin-control" role="region" aria-label="관리자 게시글 선택">
-    <input id="adminPostIdInput" type="text" placeholder="뷰어에 표시할 gaesi 문서 ID를 입력하세요 (예: osQ0GPHi5GRRFOIRNpW0)">
-    <button id="adminSetBtn">설정</button>
-    <button id="adminClearBtn" style="background:#444;color:#fff;border-radius:8px;padding:8px 10px;border:0;cursor:pointer;font-weight:700;">초기화</button>
-  </div>
+  <!-- (관리자 제어바 제거됨) -->
 
   <!-- === main content: 게시글 뷰어만 남김 === -->
   <div class="site-content">
     <div class="post-wrap" id="postWrap" aria-live="polite">
+
+      <!-- options button -->
+      <button id="postOptionsBtn" class="post-options-btn" aria-haspopup="true" aria-expanded="false" title="더보기">⋯</button>
+      <div id="postOptionsMenu" class="post-options-menu" role="menu" aria-hidden="true">
+        <button id="copyLinkBtn" type="button" role="menuitem">게시글 링크 복사</button>
+      </div>
 
       <!-- 작성자 프로필/이름/날짜 (요청: 제목 위로) -->
       <div class="post-meta" style="margin-bottom:6px;">
@@ -185,8 +190,8 @@
 
       <!-- 좋아요 버튼 및 북마크 버튼 (요청: 내용/이미지 아래로 이동) -->
       <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
-        <button id="postLikeBtn" class="btn" title="좋아요"><span id="postLikeLabel">♡ 좋아요</span> <span id="postLikeCount" style="margin-left:8px;color:#ffae42;">0</span></button>
-        <button id="postBookmarkBtn" class="btn" title="북마크"><span id="postBookmarkLabel">🔖 북마크</span> <span id="postBookmarkCount" style="margin-left:8px;color:#ffae42;">0</span></button>
+        <button id="postLikeBtn" class="btn" title="좋아요"><span id="postLikeLabel">좋아요</span> <span id="postLikeCount" style="margin-left:8px;color:#ffae42;">0</span></button>
+        <button id="postBookmarkBtn" class="btn" title="북마크"><span id="postBookmarkLabel">북마크</span> <span id="postBookmarkCount" style="margin-left:8px;color:#ffae42;">0</span></button>
         <!-- 목록으로 버튼은 요청에 따라 제거 -->
       </div>
 
@@ -528,53 +533,6 @@
     // 현재 게시글의 authorId (프로필 모달 열기용)
     let currentAuthorId = null;
 
-    // UI: 관리자 입력 컨트롤
-    const adminInput = document.getElementById('adminPostIdInput');
-    const adminSetBtn = document.getElementById('adminSetBtn');
-    const adminClearBtn = document.getElementById('adminClearBtn');
-
-    // 초기 관리자 input 값
-    if (adminInput) adminInput.value = currentPostId || '';
-
-    adminSetBtn.addEventListener('click', async () => {
-      const v = (adminInput.value || '').trim();
-      if (!v) { alert('문서 ID를 입력하세요'); return; }
-      try {
-        await setCurrentPostId(v);
-        // 반영되었음을 사용자에게 보여줌
-        adminInput.value = currentPostId;
-      } catch (e) {
-        console.error(e);
-        alert('문서 로드 중 오류가 발생했습니다.');
-      }
-    });
-
-    adminClearBtn.addEventListener('click', async () => {
-      localStorage.removeItem('selectedPostId');
-      // if URL had id param, remove it
-      const url = new URL(window.location.href);
-      url.searchParams.delete('id');
-      history.replaceState({}, '', url.toString());
-      // set to default
-      await setCurrentPostId("osQ0GPHi5GRRFOIRNpW0");
-      adminInput.value = currentPostId;
-    });
-
-    // 함수: 변경 적용 (async로 만들어 initPost가 끝날 때까지 기다릴 수 있음)
-    async function setCurrentPostId(newId) {
-      if (!newId) return;
-      // save to localStorage
-      localStorage.setItem('selectedPostId', newId);
-      // update URL param without reload
-      const url = new URL(window.location.href);
-      url.searchParams.set('id', newId);
-      history.replaceState({}, '', url.toString());
-      // update variable
-      currentPostId = newId;
-      // refresh UI and listeners (initPost는 내부적으로 getDoc을 기다림)
-      await initPost();
-    }
-
     // UI 요소
     const titleEl = document.getElementById('title');
     const contentEl = document.getElementById('content');
@@ -595,6 +553,11 @@
     const commentSubmit = document.getElementById('commentSubmit');
     const commentsList = document.getElementById('commentsList');
     const commentsCountEl = document.getElementById('commentsCount');
+
+    // post options elements
+    const postOptionsBtn = document.getElementById('postOptionsBtn');
+    const postOptionsMenu = document.getElementById('postOptionsMenu');
+    const copyLinkBtn = document.getElementById('copyLinkBtn');
 
     // 상태 및 리스너 해제 핸들
     let postLikeListenerUnsub = null;
@@ -745,7 +708,7 @@
         // set up bookmarks listener (count + whether currentUser bookmarked)
         setupPostBookmarksListener();
 
-        // set up comments real-time listener
+        // set up comments real-time listener (NOTE: changed to desc so newest appears at top)
         setupCommentsListener();
 
         // increment viewCount on first view this session (sessionStorage 기반)
@@ -802,12 +765,11 @@
     }
 
     function renderPostLikeButton() {
+      // Always show the same label "좋아요" but change color when liked
+      postLikeLabel.innerText = '좋아요';
       if (postLikedByCurrentUser) {
-        postLikeLabel.innerText = '♥ 좋아요 취소';
-        postLikeBtn.classList.add('btn');
         postLikeBtn.style.color = '#ffae42';
       } else {
-        postLikeLabel.innerText = '♡ 좋아요';
         postLikeBtn.style.color = '';
       }
     }
@@ -854,11 +816,11 @@
     }
 
     function renderPostBookmarkButton() {
+      // Always show "북마크" label; visual highlight when bookmarked
+      postBookmarkLabel.innerText = '북마크';
       if (postBookmarkedByCurrentUser) {
-        postBookmarkLabel.innerText = '🔖 북마크 해제';
         postBookmarkBtn.style.color = '#ffae42';
       } else {
-        postBookmarkLabel.innerText = '🔖 북마크';
         postBookmarkBtn.style.color = '';
       }
     }
@@ -886,7 +848,8 @@
     // --- Comments: add + real-time render + comment likes ---
     function setupCommentsListener() {
       const commentsCol = collection(db, 'gaesi', currentPostId, 'comments');
-      const q = query(commentsCol, orderBy('createdAt', 'asc'));
+      // ORDER BY changed to 'desc' so newest appears at top (내려갈 수록 오래된 댓글)
+      const q = query(commentsCol, orderBy('createdAt', 'desc'));
       if (commentsListenerUnsub) commentsListenerUnsub();
       commentsListenerUnsub = onSnapshot(q, (snapshot) => {
         commentsList.innerHTML = '';
@@ -896,7 +859,6 @@
           const id = docSnap.id;
           const item = renderCommentItem(id, c);
           commentsList.appendChild(item);
-          // For each comment, we will render its like count from c.likeCount (kept in doc) and check if current user liked
         });
       }, (err) => {
         console.error('comments listener error', err);
@@ -1105,9 +1067,7 @@
       profileBio.textContent = udata.bio || udata.description || '';
 
       // role tag: if admin or role field present
-      // show small tag next to nickname if admin
       const role = udata.role || '';
-      // remove existing role tag if any
       const existingRoleTag = profileNickname.querySelector('.profile-role');
       if (existingRoleTag) existingRoleTag.remove();
       if (role && role.toLowerCase() === 'admin') {
@@ -1183,11 +1143,8 @@
             try { await updateDoc(myDocRef, { followingCount: increment(-1) }); } catch (_) {}
             followBtn.textContent = '팔로우';
             followBtn.dataset.following = '0';
-            // update counts in UI
             const currentFollowers = parseInt((followersCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
-            const currentFollowing = parseInt((followingCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
             followersCountEl.textContent = `팔로워 ${Math.max(0, currentFollowers - 1)}`;
-            // We don't change the target user's following count here; it's for currentUser only
           } else {
             // follow: create both docs and increment counts
             await setDoc(followingRef, { uid: userId, createdAt: serverTimestamp() });
@@ -1217,6 +1174,59 @@
     document.getElementById('openLoginFromSignup').addEventListener('click', () => {
       closeModal('signupModal');
       openModal('loginModal');
+    });
+
+    // --- post options menu behavior (copy link) ---
+    postOptionsBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const isOpen = postOptionsMenu.style.display === 'block';
+      if (isOpen) {
+        postOptionsMenu.style.display = 'none';
+        postOptionsBtn.setAttribute('aria-expanded','false');
+      } else {
+        postOptionsMenu.style.display = 'block';
+        postOptionsMenu.setAttribute('aria-hidden','false');
+        postOptionsBtn.setAttribute('aria-expanded','true');
+      }
+    });
+    // close menu when clicking elsewhere
+    document.addEventListener('click', (ev) => {
+      if (postOptionsMenu.style.display === 'block') {
+        postOptionsMenu.style.display = 'none';
+        postOptionsMenu.setAttribute('aria-hidden','true');
+        postOptionsBtn.setAttribute('aria-expanded','false');
+      }
+    });
+    // stop propagation if clicking inside menu
+    postOptionsMenu.addEventListener('click', (ev) => { ev.stopPropagation(); });
+
+    copyLinkBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const url = window.location.href;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          // fallback
+          const ta = document.createElement('textarea');
+          ta.value = url;
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        // show quick feedback
+        alert('게시글 링크가 복사되었습니다.');
+      } catch (e) {
+        console.error('링크 복사 실패', e);
+        alert('링크 복사에 실패했습니다. 직접 URL을 복사해주세요:\n' + url);
+      } finally {
+        postOptionsMenu.style.display = 'none';
+        postOptionsMenu.setAttribute('aria-hidden','true');
+        postOptionsBtn.setAttribute('aria-expanded','false');
+      }
     });
 
   </script>
@@ -1262,3 +1272,4 @@
 
 </body>
 </html>
+
