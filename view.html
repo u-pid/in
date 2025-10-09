@@ -417,6 +417,12 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // --- 기본 이미지 (인터넷에서 가져온 기본 그래픽)
+    // 아바타 기본: 회색 실루엣 (Pixabay 자유 이미지)
+    const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
+    // 배너 기본: 회색 배경의 플레이스홀더
+    const DEFAULT_BANNER = "https://via.placeholder.com/720x160/333333/ffffff?text=Banner";
+
     // 전역 현재 사용자 참조
     let currentUser = null;
     onAuthStateChanged(auth, (user) => {
@@ -580,7 +586,7 @@
       contentEl.innerText = '';
       authorEl.innerText = '';
       createdAtEl.innerText = '';
-      authorAvatarEl.src = 'https://via.placeholder.com/48?text=?';
+      authorAvatarEl.src = DEFAULT_AVATAR;
       galleryEl.innerHTML = '';
       commentsList.innerHTML = '';
       commentsCountEl.innerText = '0';
@@ -599,9 +605,15 @@
           titleEl.innerText = '게시글을 찾을 수 없습니다.';
           contentEl.innerText = '';
           postViewCountEl.innerText = '';
+          // restore title
+          document.title = "게시글 보기 - 유피드 밴블리온";
           return;
         }
         const data = snap.data();
+
+        // set page title to post title (요청 반영)
+        const pageTitle = (data.title && data.title.trim()) ? `${data.title} - 유피드 밴블리온` : '게시글 보기 - 유피드 밴블리온';
+        document.title = pageTitle;
 
         titleEl.innerText = data.title || '(제목 없음)';
 
@@ -640,7 +652,7 @@
         if (authorProfile) {
           authorAvatarEl.src = authorProfile;
         } else {
-          authorAvatarEl.src = 'https://via.placeholder.com/48?text=?';
+          authorAvatarEl.src = DEFAULT_AVATAR;
         }
 
         // createdAt
@@ -739,6 +751,8 @@
         titleEl.innerText = '게시글을 불러오는 중 오류가 발생했습니다.';
         contentEl.innerText = '';
         postViewCountEl.innerText = '';
+        // restore title
+        document.title = "게시글 보기 - 유피드 밴블리온";
         throw err;
       }
     }
@@ -871,8 +885,19 @@
       // avatar
       const avatar = document.createElement('img');
       avatar.className = 'comment-author-avatar';
-      avatar.src = commentData.authorProfileUrl || 'https://via.placeholder.com/40?text=?';
+      const avatarUrl = commentData.authorProfileUrl || DEFAULT_AVATAR;
+      avatar.src = avatarUrl;
       avatar.alt = '프로필';
+      avatar.style.cursor = 'pointer';
+      // clicking avatar opens profile modal (if authorId present)
+      avatar.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        // prefer explicit authorId stored on comment, else attempt to use authorName fallback -> openProfileModalFor expects userId
+        const targetUserId = commentData.authorId || null;
+        if (targetUserId) openProfileModalFor(targetUserId);
+        else alert('프로필 정보를 불러올 수 없습니다.');
+      });
+
       // body
       const body = document.createElement('div');
       body.className = 'comment-body';
@@ -882,6 +907,15 @@
       const name = document.createElement('div');
       name.className = 'comment-author-name';
       name.innerText = commentData.authorName || '익명';
+      name.style.cursor = 'pointer';
+      // clicking name also opens profile (same behavior)
+      name.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const targetUserId = commentData.authorId || null;
+        if (targetUserId) openProfileModalFor(targetUserId);
+        else alert('프로필 정보를 불러올 수 없습니다.');
+      });
+
       const date = document.createElement('div');
       date.className = 'comment-date';
       if (commentData.createdAt) {
@@ -1037,9 +1071,9 @@
 
     // load user data into profile modal and setup follow button
     async function loadProfileIntoModal(userId) {
-      // reset UI
-      profileBanner.src = 'https://via.placeholder.com/720x160?text=Banner';
-      profileAvatar.src = 'https://via.placeholder.com/68?text=?';
+      // reset UI (use our DEFAULTs)
+      profileBanner.src = DEFAULT_BANNER;
+      profileAvatar.src = DEFAULT_AVATAR;
       profileNickname.textContent = '사용자';
       profileBio.textContent = '';
       followersCountEl.textContent = '팔로워 0';
@@ -1053,15 +1087,16 @@
       if (!uSnap.exists()) {
         profileNickname.textContent = '사용자';
         profileBio.textContent = '(정보 없음)';
+        // keep default images
         return;
       }
       const udata = uSnap.data();
 
-      // banner & avatar
+      // banner & avatar - if missing, use DEFAULTs
       const bannerUrl = udata.bannerUrl || udata.coverPhoto || '';
       const avatarUrl = udata.photoURL || udata.avatarUrl || '';
-      if (bannerUrl) profileBanner.src = bannerUrl;
-      if (avatarUrl) profileAvatar.src = avatarUrl;
+      profileBanner.src = bannerUrl || DEFAULT_BANNER;
+      profileAvatar.src = avatarUrl || DEFAULT_AVATAR;
 
       profileNickname.textContent = udata.displayName || udata.nickname || udata.email || '사용자';
       profileBio.textContent = udata.bio || udata.description || '';
@@ -1272,3 +1307,4 @@
 
 </body>
 </html>
+
