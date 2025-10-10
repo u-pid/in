@@ -59,7 +59,9 @@
 
     /* admin small edit buttons */
     .admin-edit-btn { margin-left:8px; padding:4px 6px; font-size:12px; background:transparent; border:1px solid rgba(255,255,255,0.06); color:#ddd; border-radius:6px; cursor:pointer; }
-    .pinned-tag { background:#ffea8a; color:#000; padding:3px 6px; border-radius:6px; font-weight:700; margin-right:8px; }
+
+    /* pinned tag - reduced size (changed per 요청) */
+    .pinned-tag { background:#ffea8a; color:#000; padding:2px 4px; border-radius:4px; font-weight:700; margin-right:8px; font-size:11px; }
 
     /* 댓글 영역 */
     .comments-wrap { margin-top:22px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.02); }
@@ -178,6 +180,7 @@
             <div id="author" class="post-author"></div>
             <div style="display:flex; gap:8px; align-items:center;">
               <div id="createdAt" class="post-date"></div>
+              <!-- 조회수 옆에 관리자 편집 버튼 추가 (id=adminEditViewsBtn) -->
               <div id="postViewCount" class="post-date" style="margin-left:8px;"></div>
             </div>
           </div>
@@ -376,7 +379,7 @@
       <img src="https://i.imgur.com/7uI8nfn.png" alt="Logo6" style="height:30px;">
       <img src="https://i.imgur.com/yccwqmB.png" alt="Logo7" style="height:30px;">
       <img src="https://i.imgur.com/mHH406e.png" alt="Logo8" style="height:30px;">
-      <img src="https://i.imgur.com/tc4GZfM.png" alt="Logo9" style="height:30px;">
+      <img src="https://i.imgur.com/tc4GZfD.png" alt="Logo9" style="height:30px;">
       <div style="width:1px; height:30px; background:#444;"></div>
       <img src="https://i.imgur.com/cHJBLaF.png" alt="Logo10" style="height:30px;">
     </div>
@@ -421,9 +424,7 @@
     const db = getFirestore(app);
 
     // --- 기본 이미지 (인터넷에서 가져온 기본 그래픽)
-    // 아바타 기본: 회색 실루엣 (Pixabay 자유 이미지)
     const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
-    // 배너 기본: 회색 배경의 플레이스홀더
     const DEFAULT_BANNER = "https://via.placeholder.com/720x160/333333/ffffff?text=Banner";
 
     // 전역 현재 사용자 참조
@@ -546,12 +547,10 @@
     });
 
     // --- 게시글 / 댓글 / 좋아요 로직 (동적 post 선택 지원) ---
-    // 우선순위: URL ?id=XXX  -> localStorage 'selectedPostId' -> 기본 테스트 ID
     let currentPostId = (new URLSearchParams(window.location.search).get('id')) 
                         || (localStorage.getItem('selectedPostId')) 
                         || "osQ0GPHi5GRRFOIRNpW0";
 
-    // 현재 게시글의 authorId (프로필 모달 열기용)
     let currentAuthorId = null;
 
     // UI 요소
@@ -580,11 +579,14 @@
     const postOptionsMenu = document.getElementById('postOptionsMenu');
     const copyLinkBtn = document.getElementById('copyLinkBtn');
 
-    // admin elements
+    // admin elements (추가: views 편집 버튼 참조)
     const adminEditLikesBtn = document.getElementById('adminEditLikesBtn');
     const adminEditBookmarksBtn = document.getElementById('adminEditBookmarksBtn');
     const adminEditFollowersBtn = document.getElementById('adminEditFollowersBtn');
     const adminEditFollowingBtn = document.getElementById('adminEditFollowingBtn');
+    // 추가된 버튼을 DOM에 동적으로 생성하여 toggleAdminControls에서 노출 -> 하지만 여기에 참조해두면 안전
+    // (postViewCount에 붙일 버튼을 DOM에서 생성/추가)
+    let adminEditViewsBtn = null;
 
     // 상태 및 리스너 해제 핸들
     let postLikeListenerUnsub = null;
@@ -592,6 +594,33 @@
     let postBookmarkListenerUnsub = null;
     let postLikedByCurrentUser = false;
     let postBookmarkedByCurrentUser = false;
+
+    // DOM에 adminEditViewsBtn 없으면 동적으로 생성하여 postViewCount 요소에 추가
+    function ensureAdminViewEditBtn() {
+      if (adminEditViewsBtn) return adminEditViewsBtn;
+      const el = document.createElement('button');
+      el.id = 'adminEditViewsBtn';
+      el.className = 'admin-edit-btn';
+      el.style.display = 'none';
+      el.textContent = '편집';
+      // append to postViewCountEl (postViewCountEl might contain text)
+      if (postViewCountEl) {
+        postViewCountEl.appendChild(el);
+      }
+      adminEditViewsBtn = el;
+      // wire event
+      adminEditViewsBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!isAdmin) return;
+        const current = parseInt((postViewCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
+        const input = prompt('조회수를 입력하세요 (숫자):', String(current));
+        if (input === null) return;
+        const n = parseInt(input);
+        if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
+        await adminSetPostViews(n);
+      });
+      return adminEditViewsBtn;
+    }
 
     // Load post data once and set up listeners (안전: 이전 리스너 해제)
     async function initPost() {
@@ -683,6 +712,8 @@
 
         const viewCountVal = (typeof data.viewCount === 'number') ? data.viewCount : 0;
         postViewCountEl.innerText = `조회수 ${viewCountVal}`;
+        // ensure admin view-edit button exists and is placed
+        ensureAdminViewEditBtn();
 
         if (data.contentHtml) {
           contentEl.innerHTML = data.contentHtml;
@@ -1284,14 +1315,18 @@
       if (adminEditBookmarksBtn) adminEditBookmarksBtn.style.display = show ? 'inline-block' : 'none';
       if (adminEditFollowersBtn) adminEditFollowersBtn.style.display = show ? 'inline-block' : 'none';
       if (adminEditFollowingBtn) adminEditFollowingBtn.style.display = show ? 'inline-block' : 'none';
+      // ensure views edit button exists and toggle
+      const vbtn = ensureAdminViewEditBtn();
+      if (vbtn) vbtn.style.display = show ? 'inline-block' : 'none';
+
       // show admin controls on currently rendered comments by forcing a re-render via listener
       if (commentsListenerUnsub) {
-        // re-trigger listener render by re-invoking setup (safe because it unsubscribes then resubscribes)
         setupCommentsListener();
       }
     }
 
     // Helper: create placeholder docs to reach target count in a collection while preserving real user docs.
+    // FIXED: use correct collectionRef operations (doc(colRef, id)) instead of trying to reassemble path incorrectly.
     async function adjustPlaceholdersToTarget(colRef, placeholderPrefix, targetCount) {
       const snaps = await getDocs(colRef);
       const docs = snaps.docs;
@@ -1302,16 +1337,18 @@
         // cannot reduce below real interactions
         return { success: false, minAllowed: realCount, currentReal: realCount };
       }
-      // delete existing admin placeholders
+      // delete existing admin placeholders (correctly reference docs inside the given collection)
       for (const d of adminDocs) {
-        try { await deleteDoc(doc(colRef.parent, colRef.id, colRef.path.split('/').slice(-1)[0], d.id)); } catch (e) { /* ignore */ }
+        try {
+          await deleteDoc(doc(colRef, d.id)); // <-- fixed
+        } catch (e) { /* ignore */ }
       }
       // create required placeholders
       const need = targetCount - realCount;
       for (let i=0;i<need;i++) {
         const id = `${placeholderPrefix}${Date.now()}_${i}`;
         try {
-          await setDoc(doc(colRef.parent, colRef.id, colRef.path.split('/').slice(-1)[0], id), { adminPlaceholder: true, createdAt: serverTimestamp() });
+          await setDoc(doc(colRef, id), { adminPlaceholder: true, createdAt: serverTimestamp() }); // <-- fixed
         } catch (e) { console.error('placeholder create failed', e); }
       }
       return { success: true, created: need, realCount };
@@ -1326,6 +1363,7 @@
         return;
       }
       try {
+        // also set post doc field for consistency
         await updateDoc(doc(db, 'gaesi', currentPostId), { likeCount: target });
       } catch (e) { console.error(e); }
       alert('좋아요 수가 변경되었습니다.');
@@ -1342,6 +1380,19 @@
         await updateDoc(doc(db, 'gaesi', currentPostId), { bookmarkCount: target });
       } catch (e) { console.error(e); }
       alert('북마크 수가 변경되었습니다.');
+    }
+
+    // admin-set post views (새로 추가) - 운영자가 조회수를 직접 세팅
+    async function adminSetPostViews(target) {
+      try {
+        await updateDoc(doc(db, 'gaesi', currentPostId), { viewCount: target });
+        postViewCountEl.innerText = `조회수 ${target}`;
+      } catch (e) {
+        console.error('adminSetPostViews failed', e);
+        alert('조회수 변경 중 오류가 발생했습니다.');
+        return;
+      }
+      alert('조회수가 변경되었습니다.');
     }
 
     // admin-set comment likes (adjust placeholders in comment likes subcollection)
@@ -1388,7 +1439,7 @@
       await loadProfileIntoModal(userId);
     }
 
-    // wire admin edit buttons
+    // wire admin edit buttons (기존 코드 유지, plus views button is created dynamically)
     if (adminEditLikesBtn) {
       adminEditLikesBtn.addEventListener('click', async (ev) => {
         ev.stopPropagation();
@@ -1443,6 +1494,7 @@
     window.__adminHelpers = {
       setPostLikes: adminSetPostLikes,
       setPostBookmarks: adminSetPostBookmarks,
+      setPostViews: adminSetPostViews, // 새로 추가
       setCommentLikes: adminSetCommentLikes,
       setUserFollowers: adminSetUserFollowers,
       setUserFollowing: adminSetUserFollowing
