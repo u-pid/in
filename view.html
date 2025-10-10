@@ -338,8 +338,9 @@
       <div class="profile-body" aria-live="polite">
         <div style="display:flex; align-items:center; gap:12px;">
           <div class="profile-stats">
-            <div class="stat" id="followersCount">팔로워 0 <button id="adminEditFollowersBtn" class="admin-edit-btn" style="display:none;">편집</button></div>
-            <div class="stat" id="followingCount">팔로잉 0 <button id="adminEditFollowingBtn" class="admin-edit-btn" style="display:none;">편집</button></div>
+            <!-- 숫자 부분을 span으로 분리하여 전체 element.textContent 덮어쓰기 시 버튼이 사라지지 않도록 변경 -->
+            <div class="stat" id="followersCount">팔로워 <span id="followersCountValue">0</span> <button id="adminEditFollowersBtn" class="admin-edit-btn" style="display:none;">편집</button></div>
+            <div class="stat" id="followingCount">팔로잉 <span id="followingCountValue">0</span> <button id="adminEditFollowingBtn" class="admin-edit-btn" style="display:none;">편집</button></div>
           </div>
         </div>
 
@@ -587,6 +588,10 @@
     // 추가된 버튼을 DOM에 동적으로 생성하여 toggleAdminControls에서 노출 -> 하지만 여기에 참조해두면 안전
     // (postViewCount에 붙일 버튼을 DOM에서 생성/추가)
     let adminEditViewsBtn = null;
+
+    // Profile modal related value spans (새로 추가된 참조)
+    const followersCountValueEl = document.getElementById('followersCountValue');
+    const followingCountValueEl = document.getElementById('followingCountValue');
 
     // 상태 및 리스너 해제 핸들
     let postLikeListenerUnsub = null;
@@ -1128,8 +1133,12 @@
       profileAvatar.src = DEFAULT_AVATAR;
       profileNickname.textContent = '사용자';
       profileBio.textContent = '';
-      followersCountEl.textContent = '팔로워 0';
-      followingCountEl.textContent = '팔로잉 0';
+      // 초기값 설정: span이 있으면 span을 업데이트, 없으면 fallback
+      if (followersCountValueEl) followersCountValueEl.innerText = '0';
+      else if (followersCountEl) followersCountEl.textContent = '팔로워 0';
+      if (followingCountValueEl) followingCountValueEl.innerText = '0';
+      else if (followingCountEl) followingCountEl.textContent = '팔로잉 0';
+
       followBtn.style.display = 'none';
       followBtn.textContent = '팔로우';
 
@@ -1179,8 +1188,11 @@
           followingCount = 0;
         }
       }
-      followersCountEl.textContent = `팔로워 ${followerCount}`;
-      followingCountEl.textContent = `팔로잉 ${followingCount}`;
+      // 여기서도 전체 element.textContent로 덮어쓰지 않고 값(span)을 업데이트
+      if (followersCountValueEl) followersCountValueEl.innerText = String(followerCount || 0);
+      else if (followersCountEl) followersCountEl.textContent = `팔로워 ${followerCount}`;
+      if (followingCountValueEl) followingCountValueEl.innerText = String(followingCount || 0);
+      else if (followingCountEl) followingCountEl.textContent = `팔로잉 ${followingCount}`;
 
       if (!currentUser || currentUser.uid === userId) {
         followBtn.style.display = 'none';
@@ -1221,8 +1233,9 @@
             try { await updateDoc(myDocRef, { followingCount: increment(-1) }); } catch (_) {}
             followBtn.textContent = '팔로우';
             followBtn.dataset.following = '0';
-            const currentFollowers = parseInt((followersCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
-            followersCountEl.textContent = `팔로워 ${Math.max(0, currentFollowers - 1)}`;
+            const currentFollowers = parseInt((followersCountValueEl ? followersCountValueEl.innerText : (followersCountEl ? followersCountEl.textContent : '')).replace(/[^0-9]/g,'')) || 0;
+            if (followersCountValueEl) followersCountValueEl.innerText = String(Math.max(0, currentFollowers - 1));
+            else if (followersCountEl) followersCountEl.textContent = `팔로워 ${Math.max(0, currentFollowers - 1)}`;
           } else {
             await setDoc(followingRef, { uid: userId, createdAt: serverTimestamp() });
             await setDoc(followerRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
@@ -1230,8 +1243,9 @@
             try { await updateDoc(myDocRef, { followingCount: increment(1) }); } catch (_) {}
             followBtn.textContent = '언팔로우';
             followBtn.dataset.following = '1';
-            const currentFollowers = parseInt((followersCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
-            followersCountEl.textContent = `팔로워 ${currentFollowers + 1}`;
+            const currentFollowers = parseInt((followersCountValueEl ? followersCountValueEl.innerText : (followersCountEl ? followersCountEl.textContent : '')).replace(/[^0-9]/g,'')) || 0;
+            if (followersCountValueEl) followersCountValueEl.innerText = String(currentFollowers + 1);
+            else if (followersCountEl) followersCountEl.textContent = `팔로워 ${currentFollowers + 1}`;
           }
         } catch (e) {
           console.error(e);
@@ -1469,7 +1483,9 @@
         if (!isAdmin) return;
         const uid = currentAuthorId || (currentUser && currentUser.uid);
         if (!uid) { alert('사용자 ID를 찾을 수 없습니다.'); return; }
-        const input = prompt('사용자 팔로워 수를 입력하세요 (숫자):', followersCountEl.innerText.replace(/[^0-9]/g,'') || '0');
+        // 초기값을 span에서 가져오도록 변경 (fallback 존재)
+        const initFollowersVal = followersCountValueEl ? (followersCountValueEl.innerText || '0') : (followersCountEl ? followersCountEl.innerText.replace(/[^0-9]/g,'') : '0');
+        const input = prompt('사용자 팔로워 수를 입력하세요 (숫자):', initFollowersVal || '0');
         if (input === null) return;
         const n = parseInt(input);
         if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
@@ -1482,7 +1498,9 @@
         if (!isAdmin) return;
         const uid = currentAuthorId || (currentUser && currentUser.uid);
         if (!uid) { alert('사용자 ID를 찾을 수 없습니다.'); return; }
-        const input = prompt('사용자 팔로잉 수를 입력하세요 (숫자):', followingCountEl.innerText.replace(/[^0-9]/g,'') || '0');
+        // 초기값을 span에서 가져오도록 변경 (fallback 존재)
+        const initFollowingVal = followingCountValueEl ? (followingCountValueEl.innerText || '0') : (followingCountEl ? followingCountEl.innerText.replace(/[^0-9]/g,'') : '0');
+        const input = prompt('사용자 팔로잉 수를 입력하세요 (숫자):', initFollowingVal || '0');
         if (input === null) return;
         const n = parseInt(input);
         if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
