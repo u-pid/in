@@ -57,6 +57,10 @@
     .post-options-menu button { width:100%; text-align:left; padding:10px 12px; border:0; background:transparent; color:#ddd; cursor:pointer; font-weight:700; }
     .post-options-menu button:hover { background: rgba(255,255,255,0.02); color:#fff; }
 
+    /* admin small edit buttons */
+    .admin-edit-btn { margin-left:8px; padding:4px 6px; font-size:12px; background:transparent; border:1px solid rgba(255,255,255,0.06); color:#ddd; border-radius:6px; cursor:pointer; }
+    .pinned-tag { background:#ffea8a; color:#000; padding:3px 6px; border-radius:6px; font-weight:700; margin-right:8px; }
+
     /* 댓글 영역 */
     .comments-wrap { margin-top:22px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); padding:14px; border-radius:10px; border:1px solid rgba(255,255,255,0.02); }
     .comment-form { display:flex; gap:10px; align-items:flex-start; margin-bottom:12px; }
@@ -139,30 +143,6 @@
       .author-avatar { width:40px; height:40px; }
       .profile-modal .modal-content { width:calc(100% - 20px); }
     }
-
-    .admin-edit-btn {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:6px;
-      padding:4px 8px;
-      font-size:12px;
-      border-radius:8px;
-      border:1px dashed rgba(255,255,255,0.06);
-      background: rgba(0,0,0,0.25);
-      color:#ffea8a;
-      cursor:pointer;
-      margin-left:8px;
-    }
-    .admin-pin-badge {
-      font-size:12px;
-      padding:3px 8px;
-      border-radius:8px;
-      background:#ffcc00;
-      color:#000;
-      font-weight:700;
-      margin-left:8px;
-    }
   </style>
 </head>
 <body>
@@ -214,9 +194,8 @@
 
       <!-- 좋아요 버튼 및 북마크 버튼 (요청: 내용/이미지 아래로 이동) -->
       <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
-        <button id="postLikeBtn" class="btn" title="좋아요"><span id="postLikeLabel">좋아요</span> <span id="postLikeCount" style="margin-left:8px;color:#ffae42;">0</span></button>
-        <button id="postBookmarkBtn" class="btn" title="북마크"><span id="postBookmarkLabel">북마크</span> <span id="postBookmarkCount" style="margin-left:8px;color:#ffae42;">0</span></button>
-        <!-- 목록으로 버튼은 요청에 따라 제거 -->
+        <button id="postLikeBtn" class="btn" title="좋아요"><span id="postLikeLabel">좋아요</span> <span id="postLikeCount" style="margin-left:8px;color:#ffae42;">0</span><button id="adminEditLikesBtn" class="admin-edit-btn" style="display:none;">편집</button></button>
+        <button id="postBookmarkBtn" class="btn" title="북마크"><span id="postBookmarkLabel">북마크</span> <span id="postBookmarkCount" style="margin-left:8px;color:#ffae42;">0</span><button id="adminEditBookmarksBtn" class="admin-edit-btn" style="display:none;">편집</button></button>
       </div>
 
       <!-- 댓글 섹션 -->
@@ -356,8 +335,8 @@
       <div class="profile-body" aria-live="polite">
         <div style="display:flex; align-items:center; gap:12px;">
           <div class="profile-stats">
-            <div class="stat" id="followersCount">팔로워 0</div>
-            <div class="stat" id="followingCount">팔로잉 0</div>
+            <div class="stat" id="followersCount">팔로워 0 <button id="adminEditFollowersBtn" class="admin-edit-btn" style="display:none;">편집</button></div>
+            <div class="stat" id="followingCount">팔로잉 0 <button id="adminEditFollowingBtn" class="admin-edit-btn" style="display:none;">편집</button></div>
           </div>
         </div>
 
@@ -441,11 +420,6 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // expose to window for admin module (MINIMAL, intentional)
-    window.auth = auth;
-    window.db = db;
-    window.onAuthStateChanged = onAuthStateChanged;
-
     // --- 기본 이미지 (인터넷에서 가져온 기본 그래픽)
     // 아바타 기본: 회색 실루엣 (Pixabay 자유 이미지)
     const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
@@ -454,12 +428,25 @@
 
     // 전역 현재 사용자 참조
     let currentUser = null;
-    onAuthStateChanged(auth, (user) => {
+    let isAdmin = false;
+
+    onAuthStateChanged(auth, async (user) => {
       currentUser = user;
-      // mirror to window so admin module (separate module scope) can read it
-      window.currentUser = currentUser;
+      isAdmin = false;
+      if (user) {
+        try {
+          const uSnap = await getDoc(doc(db, 'users', user.uid));
+          if (uSnap.exists()) {
+            const ud = uSnap.data();
+            if (ud && ud.role && String(ud.role).toLowerCase() === 'admin') isAdmin = true;
+          }
+        } catch (e) {
+          console.error('admin check failed', e);
+        }
+      }
       updateHeader(user);
-      // 댓글 입력 활성화/비활성화
+      toggleAdminControls(); // show/hide admin UI where needed
+
       const commentInput = document.getElementById('commentInput');
       const commentSubmit = document.getElementById('commentSubmit');
       if (commentInput && commentSubmit) {
@@ -471,8 +458,6 @@
           commentInput.placeholder = "댓글을 작성하려면 로그인 후 입력하세요.";
         }
       }
-      // 좋아요/북마크 버튼 상태 렌더링은 별도 리스너가 처리
-      // 프로필 모달 팔로우 버튼 상태도 필요시 갱신 (모달 열릴 때 갱신)
     });
 
     // --- 공통 UI 함수 (전역 노출) ---
@@ -521,7 +506,6 @@
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         await updateProfile(userCredential.user, { displayName: nickname });
-        // optionally create users collection doc
         try {
           const userDocRef = doc(db, 'users', userCredential.user.uid);
           await setDoc(userDocRef, {
@@ -566,8 +550,6 @@
     let currentPostId = (new URLSearchParams(window.location.search).get('id')) 
                         || (localStorage.getItem('selectedPostId')) 
                         || "osQ0GPHi5GRRFOIRNpW0";
-    // expose currentPostId for admin module
-    window.currentPostId = currentPostId;
 
     // 현재 게시글의 authorId (프로필 모달 열기용)
     let currentAuthorId = null;
@@ -593,36 +575,32 @@
     const commentsList = document.getElementById('commentsList');
     const commentsCountEl = document.getElementById('commentsCount');
 
-    // expose DOM refs to window for admin module to reference (minimal)
-    window.postLikeCountEl = postLikeCountEl;
-    window.postBookmarkCountEl = postBookmarkCountEl;
-    window.postViewCountEl = postViewCountEl;
-    window.commentsList = commentsList;
-
     // post options elements
     const postOptionsBtn = document.getElementById('postOptionsBtn');
     const postOptionsMenu = document.getElementById('postOptionsMenu');
     const copyLinkBtn = document.getElementById('copyLinkBtn');
 
+    // admin elements
+    const adminEditLikesBtn = document.getElementById('adminEditLikesBtn');
+    const adminEditBookmarksBtn = document.getElementById('adminEditBookmarksBtn');
+    const adminEditFollowersBtn = document.getElementById('adminEditFollowersBtn');
+    const adminEditFollowingBtn = document.getElementById('adminEditFollowingBtn');
+
     // 상태 및 리스너 해제 핸들
     let postLikeListenerUnsub = null;
     let commentsListenerUnsub = null;
     let postBookmarkListenerUnsub = null;
-    let postDocListenerUnsub = null;
     let postLikedByCurrentUser = false;
     let postBookmarkedByCurrentUser = false;
 
     // Load post data once and set up listeners (안전: 이전 리스너 해제)
     async function initPost() {
-      // unsubscribe previous listeners (if any)
       try {
         if (postLikeListenerUnsub) { postLikeListenerUnsub(); postLikeListenerUnsub = null; }
         if (commentsListenerUnsub) { commentsListenerUnsub(); commentsListenerUnsub = null; }
         if (postBookmarkListenerUnsub) { postBookmarkListenerUnsub(); postBookmarkListenerUnsub = null; }
-        if (postDocListenerUnsub) { postDocListenerUnsub(); postDocListenerUnsub = null; }
       } catch (e) { /* ignore */ }
 
-      // clear UI while loading
       titleEl.innerText = '로딩 중...';
       contentEl.innerText = '';
       authorEl.innerText = '';
@@ -646,19 +624,16 @@
           titleEl.innerText = '게시글을 찾을 수 없습니다.';
           contentEl.innerText = '';
           postViewCountEl.innerText = '';
-          // restore title
           document.title = "게시글 보기 - 유피드 밴블리온";
           return;
         }
         const data = snap.data();
 
-        // set page title to post title (요청 반영)
         const pageTitle = (data.title && data.title.trim()) ? `${data.title} - 유피드 밴블리온` : '게시글 보기 - 유피드 밴블리온';
         document.title = pageTitle;
 
         titleEl.innerText = data.title || '(제목 없음)';
 
-        // 작성자 정보: data.authorId 우선 -> users 컬렉션 조회
         let authorName = data.author || '';
         let authorProfile = data.authorProfileUrl || '';
         currentAuthorId = data.authorId || null;
@@ -672,7 +647,6 @@
             }
           } catch (e) { /* ignore */ }
         }
-        // author display with possible notice tag
         authorEl.innerHTML = '';
         const nameNode = document.createElement('span');
         nameNode.textContent = authorName ? `${authorName}` : '';
@@ -680,7 +654,6 @@
         nameNode.addEventListener('click', (ev) => { ev.stopPropagation(); openProfileModalFor(currentAuthorId); });
         authorEl.appendChild(nameNode);
 
-        // show notice tag if post is notice (data.notice === true or data.isNotice)
         const isNotice = data.notice === true || data.isNotice === true || data.isPinned === true;
         if (isNotice) {
           const tag = document.createElement('span');
@@ -696,7 +669,6 @@
           authorAvatarEl.src = DEFAULT_AVATAR;
         }
 
-        // createdAt
         if (data.createdAt) {
           let date;
           if (typeof data.createdAt.toDate === 'function') {
@@ -709,18 +681,15 @@
           createdAtEl.innerText = '';
         }
 
-        // viewCount 표시 (서버 필드: viewCount)
         const viewCountVal = (typeof data.viewCount === 'number') ? data.viewCount : 0;
         postViewCountEl.innerText = `조회수 ${viewCountVal}`;
 
-        // content
         if (data.contentHtml) {
           contentEl.innerHTML = data.contentHtml;
         } else {
           contentEl.innerText = data.content || '(내용 없음)';
         }
 
-        // images - make them full width and keep aspect ratio; rounded corners preserved
         galleryEl.innerHTML = '';
         if (data.imageUrls && Array.isArray(data.imageUrls) && data.imageUrls.length) {
           data.imageUrls.slice(0,6).forEach((u,i) => {
@@ -748,51 +717,39 @@
           galleryEl.appendChild(img);
         }
 
-        // author avatar/name click: open profile modal
         const authorBlock = document.getElementById('authorBlock');
         if (authorBlock) {
           authorBlock.onclick = () => openProfileModalFor(currentAuthorId);
           authorBlock.onkeypress = (ev) => { if (ev.key === 'Enter') openProfileModalFor(currentAuthorId); };
         }
 
-        // set up likes listener (count + whether currentUser liked)
         setupPostLikesListener();
-
-        // set up bookmarks listener (count + whether currentUser bookmarked)
         setupPostBookmarksListener();
-
-        // set up comments real-time listener (NOTE: changed to desc so newest appears at top)
         setupCommentsListener();
 
-        // increment viewCount on first view this session (sessionStorage 기반)
         try {
           const viewedKey = `viewed_post_${currentPostId}`;
           if (!sessionStorage.getItem(viewedKey)) {
-            // increment server-side
             try {
               await updateDoc(postDocRef, { viewCount: increment(1) });
-              // reflect change in UI (optimistic)
               const newVal = viewCountVal + 1;
               postViewCountEl.innerText = `조회수 ${newVal}`;
             } catch (e) {
-              // update 실패해도 무시(네트워크 등), UI는 서버 상태 그대로 유지
               console.error('viewCount update failed', e);
             }
             sessionStorage.setItem(viewedKey, '1');
           }
         } catch (e) {
-          // sessionStorage 실패 시 무시
           console.error(e);
         }
 
-        // 완료
+        toggleAdminControls(); // ensure admin controls reflect for new post
         return;
       } catch (err) {
         console.error(err);
         titleEl.innerText = '게시글을 불러오는 중 오류가 발생했습니다.';
         contentEl.innerText = '';
         postViewCountEl.innerText = '';
-        // restore title
         document.title = "게시글 보기 - 유피드 밴블리온";
         throw err;
       }
@@ -805,7 +762,6 @@
       postLikeListenerUnsub = onSnapshot(likesCol, (snap) => {
         const likeCount = snap.size;
         postLikeCountEl.innerText = likeCount;
-        // check if current user liked
         if (currentUser) {
           const meLiked = snap.docs.some(d => d.id === currentUser.uid);
           postLikedByCurrentUser = meLiked;
@@ -820,7 +776,6 @@
     }
 
     function renderPostLikeButton() {
-      // Always show the same label "좋아요" but change color when liked
       postLikeLabel.innerText = '좋아요';
       if (postLikedByCurrentUser) {
         postLikeBtn.style.color = '#ffae42';
@@ -838,19 +793,16 @@
       try {
         const existsSnap = await getDoc(userLikeRef);
         if (existsSnap.exists()) {
-          // unlike
           await deleteDoc(userLikeRef);
         } else {
-          // like
           await setDoc(userLikeRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
         }
-        // listener will update UI
       } catch (e) {
         console.error(e);
       }
     });
 
-    // --- Post Bookmarks (새로 추가: 좋아요와 동일한 방식으로 서버에 저장) ---
+    // --- Post Bookmarks ---
     function setupPostBookmarksListener() {
       const bookmarksCol = collection(db, 'gaesi', currentPostId, 'bookmarks');
       if (postBookmarkListenerUnsub) postBookmarkListenerUnsub();
@@ -871,7 +823,6 @@
     }
 
     function renderPostBookmarkButton() {
-      // Always show "북마크" label; visual highlight when bookmarked
       postBookmarkLabel.innerText = '북마크';
       if (postBookmarkedByCurrentUser) {
         postBookmarkBtn.style.color = '#ffae42';
@@ -889,10 +840,8 @@
       try {
         const existsSnap = await getDoc(userBookmarkRef);
         if (existsSnap.exists()) {
-          // remove bookmark
           await deleteDoc(userBookmarkRef);
         } else {
-          // add bookmark
           await setDoc(userBookmarkRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
         }
       } catch (e) {
@@ -900,19 +849,30 @@
       }
     });
 
-    // --- Comments: add + real-time render + comment likes ---
+    // --- Comments: add + real-time render + comment likes + admin pin support ---
     function setupCommentsListener() {
       const commentsCol = collection(db, 'gaesi', currentPostId, 'comments');
-      // ORDER BY changed to 'desc' so newest appears at top (내려갈 수록 오래된 댓글)
       const q = query(commentsCol, orderBy('createdAt', 'desc'));
       if (commentsListenerUnsub) commentsListenerUnsub();
       commentsListenerUnsub = onSnapshot(q, (snapshot) => {
+        const docs = [];
+        snapshot.forEach(d => docs.push({ id: d.id, data: d.data() }));
+        // Separate pinned and others, sort pinned by pinnedAt desc, others by createdAt desc
+        const pinned = docs.filter(x => x.data.pinned).sort((a,b) => {
+          const aa = a.data.pinnedAt && typeof a.data.pinnedAt.toDate === 'function' ? a.data.pinnedAt.toDate().getTime() : (a.data.pinnedAt ? new Date(a.data.pinnedAt).getTime() : 0);
+          const bb = b.data.pinnedAt && typeof b.data.pinnedAt.toDate === 'function' ? b.data.pinnedAt.toDate().getTime() : (b.data.pinnedAt ? new Date(b.data.pinnedAt).getTime() : 0);
+          return bb - aa;
+        });
+        const rest = docs.filter(x => !x.data.pinned).sort((a,b) => {
+          const aa = a.data.createdAt && typeof a.data.createdAt.toDate === 'function' ? a.data.createdAt.toDate().getTime() : (a.data.createdAt ? new Date(a.data.createdAt).getTime() : 0);
+          const bb = b.data.createdAt && typeof b.data.createdAt.toDate === 'function' ? b.data.createdAt.toDate().getTime() : (b.data.createdAt ? new Date(b.data.createdAt).getTime() : 0);
+          return bb - aa;
+        });
         commentsList.innerHTML = '';
-        commentsCountEl.innerText = `${snapshot.size}`;
-        snapshot.forEach(docSnap => {
-          const c = docSnap.data();
-          const id = docSnap.id;
-          const item = renderCommentItem(id, c);
+        const ordered = [...pinned, ...rest];
+        commentsCountEl.innerText = `${docs.length}`;
+        ordered.forEach(({id, data}) => {
+          const item = renderCommentItem(id, data);
           commentsList.appendChild(item);
         });
       }, (err) => {
@@ -923,23 +883,19 @@
     function renderCommentItem(commentId, commentData) {
       const div = document.createElement('div');
       div.className = 'comment-item';
-      // avatar
       const avatar = document.createElement('img');
       avatar.className = 'comment-author-avatar';
       const avatarUrl = commentData.authorProfileUrl || DEFAULT_AVATAR;
       avatar.src = avatarUrl;
       avatar.alt = '프로필';
       avatar.style.cursor = 'pointer';
-      // clicking avatar opens profile modal (if authorId present)
       avatar.addEventListener('click', (ev) => {
         ev.stopPropagation();
-        // prefer explicit authorId stored on comment, else attempt to use authorName fallback -> openProfileModalFor expects userId
         const targetUserId = commentData.authorId || null;
         if (targetUserId) openProfileModalFor(targetUserId);
         else alert('프로필 정보를 불러올 수 없습니다.');
       });
 
-      // body
       const body = document.createElement('div');
       body.className = 'comment-body';
 
@@ -949,7 +905,6 @@
       name.className = 'comment-author-name';
       name.innerText = commentData.authorName || '익명';
       name.style.cursor = 'pointer';
-      // clicking name also opens profile (same behavior)
       name.addEventListener('click', (ev) => {
         ev.stopPropagation();
         const targetUserId = commentData.authorId || null;
@@ -966,6 +921,13 @@
         date.innerText = d && !isNaN(d.getTime()) ? d.toLocaleString() : '';
       } else date.innerText = '';
 
+      if (commentData.pinned) {
+        const pinnedTag = document.createElement('span');
+        pinnedTag.className = 'pinned-tag';
+        pinnedTag.textContent = '고정';
+        head.appendChild(pinnedTag);
+      }
+
       head.appendChild(name);
       head.appendChild(date);
 
@@ -976,13 +938,11 @@
       const actions = document.createElement('div');
       actions.className = 'comment-actions';
 
-      // like button for comment
       const likeBtn = document.createElement('button');
       likeBtn.className = 'like-btn';
       likeBtn.innerHTML = `♡ <span class="c-like-count">${commentData.likeCount || 0}</span>`;
       likeBtn.title = '공감';
 
-      // check if current user liked this comment
       async function refreshCommentLikeState() {
         if (!currentUser) {
           likeBtn.classList.remove('liked');
@@ -993,33 +953,23 @@
           if (likeDoc.exists()) likeBtn.classList.add('liked');
           else likeBtn.classList.remove('liked');
         } catch (e) {
-          // ignore
         }
       }
-      // initial state
       refreshCommentLikeState();
 
-      // click handler
       likeBtn.addEventListener('click', async () => {
-        if (!currentUser) {
-          openModal('loginModal');
-          return;
-        }
+        if (!currentUser) { openModal('loginModal'); return; }
         const likeRef = doc(db, 'gaesi', currentPostId, 'comments', commentId, 'likes', currentUser.uid);
         const commentDocRef = doc(db, 'gaesi', currentPostId, 'comments', commentId);
         try {
           const existing = await getDoc(likeRef);
           if (existing.exists()) {
-            // unlike
             await deleteDoc(likeRef);
-            // decrement likeCount if field exists
             try { await updateDoc(commentDocRef, { likeCount: increment(-1) }); } catch (_) {}
-            // update UI immediately
             const countSpan = likeBtn.querySelector('.c-like-count');
             if (countSpan) countSpan.innerText = Math.max(0, (commentData.likeCount || 0) - 1);
             likeBtn.classList.remove('liked');
           } else {
-            // like
             await setDoc(likeRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
             try { await updateDoc(commentDocRef, { likeCount: increment(1) }); } catch (_) {}
             const countSpan = likeBtn.querySelector('.c-like-count');
@@ -1033,6 +983,40 @@
 
       actions.appendChild(likeBtn);
 
+      if (isAdmin) {
+        const adminEditCommentLikesBtn = document.createElement('button');
+        adminEditCommentLikesBtn.className = 'admin-edit-btn';
+        adminEditCommentLikesBtn.textContent = '좋아요 편집';
+        adminEditCommentLikesBtn.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const inp = prompt('댓글 좋아요 수를 입력하세요 (숫자):', String(commentData.likeCount || 0));
+          if (inp === null) return;
+          const n = parseInt(inp);
+          if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
+          await adminSetCommentLikes(commentId, n);
+        });
+        actions.appendChild(adminEditCommentLikesBtn);
+
+        const pinBtn = document.createElement('button');
+        pinBtn.className = 'admin-edit-btn';
+        pinBtn.textContent = commentData.pinned ? '고정 해제' : '고정';
+        pinBtn.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          try {
+            const commentDocRef = doc(db, 'gaesi', currentPostId, 'comments', commentId);
+            if (commentData.pinned) {
+              await updateDoc(commentDocRef, { pinned: false });
+            } else {
+              await updateDoc(commentDocRef, { pinned: true, pinnedAt: serverTimestamp() });
+            }
+          } catch (e) {
+            console.error(e);
+            alert('고정 작업 중 오류가 발생했습니다.');
+          }
+        });
+        actions.appendChild(pinBtn);
+      }
+
       body.appendChild(head);
       body.appendChild(content);
       body.appendChild(actions);
@@ -1042,9 +1026,6 @@
 
       return div;
     }
-
-    // expose renderCommentItem so admin module can wrap it
-    window.renderCommentItem = renderCommentItem;
 
     // submit comment
     commentSubmit.addEventListener('click', async () => {
@@ -1058,7 +1039,6 @@
         return;
       }
       try {
-        // get author info from users col if exists
         let authorName = currentUser.displayName || currentUser.email || '사용자';
         let authorProfile = currentUser.photoURL || '';
 
@@ -1078,10 +1058,10 @@
           authorProfileUrl: authorProfile || '',
           content: text,
           createdAt: serverTimestamp(),
-          likeCount: 0
+          likeCount: 0,
+          pinned: false
         });
         commentInput.value = '';
-        // listener will show it
       } catch (e) {
         console.error(e);
         alert('댓글 작성 중 오류가 발생했습니다.');
@@ -1098,7 +1078,6 @@
     const followingCountEl = document.getElementById('followingCount');
     const followBtn = document.getElementById('followBtn');
 
-    // open profile modal for a given userId
     async function openProfileModalFor(userId) {
       if (!userId) {
         alert('해당 사용자의 프로필을 불러올 수 없습니다.');
@@ -1113,12 +1092,7 @@
       }
     }
 
-    // expose openProfileModalFor for admin module
-    window.openProfileModalFor = openProfileModalFor;
-
-    // load user data into profile modal and setup follow button
     async function loadProfileIntoModal(userId) {
-      // reset UI (use our DEFAULTs)
       profileBanner.src = DEFAULT_BANNER;
       profileAvatar.src = DEFAULT_AVATAR;
       profileNickname.textContent = '사용자';
@@ -1128,18 +1102,15 @@
       followBtn.style.display = 'none';
       followBtn.textContent = '팔로우';
 
-      // fetch user doc
       const userRef = doc(db, 'users', userId);
       const uSnap = await getDoc(userRef);
       if (!uSnap.exists()) {
         profileNickname.textContent = '사용자';
         profileBio.textContent = '(정보 없음)';
-        // keep default images
         return;
       }
       const udata = uSnap.data();
 
-      // banner & avatar - if missing, use DEFAULTs
       const bannerUrl = udata.bannerUrl || udata.coverPhoto || '';
       const avatarUrl = udata.photoURL || udata.avatarUrl || '';
       profileBanner.src = bannerUrl || DEFAULT_BANNER;
@@ -1148,7 +1119,6 @@
       profileNickname.textContent = udata.displayName || udata.nickname || udata.email || '사용자';
       profileBio.textContent = udata.bio || udata.description || '';
 
-      // role tag: if admin or role field present
       const role = udata.role || '';
       const existingRoleTag = profileNickname.querySelector('.profile-role');
       if (existingRoleTag) existingRoleTag.remove();
@@ -1159,7 +1129,6 @@
         profileNickname.appendChild(span);
       }
 
-      // follower/following counts: prefer stored fields, else count subcollections
       let followerCount = (typeof udata.followerCount === 'number') ? udata.followerCount : null;
       let followingCount = (typeof udata.followingCount === 'number') ? udata.followingCount : null;
 
@@ -1182,12 +1151,10 @@
       followersCountEl.textContent = `팔로워 ${followerCount}`;
       followingCountEl.textContent = `팔로잉 ${followingCount}`;
 
-      // Follow button: do not show for own profile
       if (!currentUser || currentUser.uid === userId) {
         followBtn.style.display = 'none';
       } else {
         followBtn.style.display = 'inline-block';
-        // check if currentUser follows this user
         try {
           const relDoc = await getDoc(doc(db, 'users', currentUser.uid, 'following', userId));
           if (relDoc.exists()) {
@@ -1203,7 +1170,6 @@
         }
       }
 
-      // attach follow handler
       followBtn.onclick = async (ev) => {
         ev.stopPropagation();
         if (!currentUser) {
@@ -1218,7 +1184,6 @@
           const myDocRef = doc(db, 'users', currentUser.uid);
 
           if (amFollowing) {
-            // unfollow: remove both docs and decrement counts
             await deleteDoc(followingRef);
             await deleteDoc(followerRef);
             try { await updateDoc(userDocRef, { followerCount: increment(-1) }); } catch (_) {}
@@ -1228,7 +1193,6 @@
             const currentFollowers = parseInt((followersCountEl.textContent || '').replace(/[^0-9]/g,'')) || 0;
             followersCountEl.textContent = `팔로워 ${Math.max(0, currentFollowers - 1)}`;
           } else {
-            // follow: create both docs and increment counts
             await setDoc(followingRef, { uid: userId, createdAt: serverTimestamp() });
             await setDoc(followerRef, { uid: currentUser.uid, createdAt: serverTimestamp() });
             try { await updateDoc(userDocRef, { followerCount: increment(1) }); } catch (_) {}
@@ -1243,6 +1207,8 @@
           alert('팔로우 작업 중 오류가 발생했습니다.');
         }
       };
+
+      toggleAdminControls(); // ensure edit buttons on profile reflect admin state
     }
 
     // init (처음 로드 시 현재 ID로 게시글을 불러옴)
@@ -1289,7 +1255,6 @@
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(url);
         } else {
-          // fallback
           const ta = document.createElement('textarea');
           ta.value = url;
           ta.style.position = 'fixed';
@@ -1299,7 +1264,6 @@
           document.execCommand('copy');
           document.body.removeChild(ta);
         }
-        // show quick feedback
         alert('게시글 링크가 복사되었습니다.');
       } catch (e) {
         console.error('링크 복사 실패', e);
@@ -1310,6 +1274,179 @@
         postOptionsBtn.setAttribute('aria-expanded','false');
       }
     });
+
+    // ------------------ 관리자 전용 함수 모음 (맨 뒤에 모아둠) ------------------
+
+    // toggle admin UI elements visibility
+    function toggleAdminControls() {
+      const show = !!isAdmin;
+      if (adminEditLikesBtn) adminEditLikesBtn.style.display = show ? 'inline-block' : 'none';
+      if (adminEditBookmarksBtn) adminEditBookmarksBtn.style.display = show ? 'inline-block' : 'none';
+      if (adminEditFollowersBtn) adminEditFollowersBtn.style.display = show ? 'inline-block' : 'none';
+      if (adminEditFollowingBtn) adminEditFollowingBtn.style.display = show ? 'inline-block' : 'none';
+      // show admin controls on currently rendered comments by forcing a re-render via listener
+      if (commentsListenerUnsub) {
+        // re-trigger listener render by re-invoking setup (safe because it unsubscribes then resubscribes)
+        setupCommentsListener();
+      }
+    }
+
+    // Helper: create placeholder docs to reach target count in a collection while preserving real user docs.
+    async function adjustPlaceholdersToTarget(colRef, placeholderPrefix, targetCount) {
+      const snaps = await getDocs(colRef);
+      const docs = snaps.docs;
+      const realDocs = docs.filter(d => !d.id.startsWith(placeholderPrefix));
+      const adminDocs = docs.filter(d => d.id.startsWith(placeholderPrefix));
+      const realCount = realDocs.length;
+      if (targetCount < realCount) {
+        // cannot reduce below real interactions
+        return { success: false, minAllowed: realCount, currentReal: realCount };
+      }
+      // delete existing admin placeholders
+      for (const d of adminDocs) {
+        try { await deleteDoc(doc(colRef.parent, colRef.id, colRef.path.split('/').slice(-1)[0], d.id)); } catch (e) { /* ignore */ }
+      }
+      // create required placeholders
+      const need = targetCount - realCount;
+      for (let i=0;i<need;i++) {
+        const id = `${placeholderPrefix}${Date.now()}_${i}`;
+        try {
+          await setDoc(doc(colRef.parent, colRef.id, colRef.path.split('/').slice(-1)[0], id), { adminPlaceholder: true, createdAt: serverTimestamp() });
+        } catch (e) { console.error('placeholder create failed', e); }
+      }
+      return { success: true, created: need, realCount };
+    }
+
+    // admin-set post likes
+    async function adminSetPostLikes(target) {
+      const likesCol = collection(db, 'gaesi', currentPostId, 'likes');
+      const result = await adjustPlaceholdersToTarget(likesCol, '__admin_like_', target);
+      if (!result.success) {
+        alert(`실제 좋아요 수(${result.minAllowed})보다 작게 설정할 수 없습니다. 최소값: ${result.minAllowed}`);
+        return;
+      }
+      try {
+        await updateDoc(doc(db, 'gaesi', currentPostId), { likeCount: target });
+      } catch (e) { console.error(e); }
+      alert('좋아요 수가 변경되었습니다.');
+    }
+    // admin-set post bookmarks
+    async function adminSetPostBookmarks(target) {
+      const col = collection(db, 'gaesi', currentPostId, 'bookmarks');
+      const result = await adjustPlaceholdersToTarget(col, '__admin_bm_', target);
+      if (!result.success) {
+        alert(`실제 북마크 수(${result.minAllowed})보다 작게 설정할 수 없습니다. 최소값: ${result.minAllowed}`);
+        return;
+      }
+      try {
+        await updateDoc(doc(db, 'gaesi', currentPostId), { bookmarkCount: target });
+      } catch (e) { console.error(e); }
+      alert('북마크 수가 변경되었습니다.');
+    }
+
+    // admin-set comment likes (adjust placeholders in comment likes subcollection)
+    async function adminSetCommentLikes(commentId, target) {
+      const col = collection(db, 'gaesi', currentPostId, 'comments', commentId, 'likes');
+      const result = await adjustPlaceholdersToTarget(col, '__admin_clike_', target);
+      if (!result.success) {
+        alert(`실제 댓글 좋아요 수(${result.minAllowed})보다 작게 설정할 수 없습니다. 최소값: ${result.minAllowed}`);
+        return;
+      }
+      try {
+        const commentDocRef = doc(db, 'gaesi', currentPostId, 'comments', commentId);
+        await updateDoc(commentDocRef, { likeCount: target });
+      } catch (e) { console.error(e); }
+      alert('댓글 좋아요 수가 변경되었습니다.');
+    }
+
+    // admin-edit followers/following for a user
+    async function adminSetUserFollowers(userId, target) {
+      const col = collection(db, 'users', userId, 'followers');
+      const result = await adjustPlaceholdersToTarget(col, '__admin_follower_', target);
+      if (!result.success) {
+        alert(`실제 팔로워 수(${result.minAllowed})보다 작게 설정할 수 없습니다. 최소값: ${result.minAllowed}`);
+        return;
+      }
+      try {
+        await updateDoc(doc(db, 'users', userId), { followerCount: target });
+      } catch (e) { console.error(e); }
+      alert('팔로워 수가 변경되었습니다.');
+      // reload modal data
+      await loadProfileIntoModal(userId);
+    }
+    async function adminSetUserFollowing(userId, target) {
+      const col = collection(db, 'users', userId, 'following');
+      const result = await adjustPlaceholdersToTarget(col, '__admin_following_', target);
+      if (!result.success) {
+        alert(`실제 팔로잉 수(${result.minAllowed})보다 작게 설정할 수 없습니다. 최소값: ${result.minAllowed}`);
+        return;
+      }
+      try {
+        await updateDoc(doc(db, 'users', userId), { followingCount: target });
+      } catch (e) { console.error(e); }
+      alert('팔로잉 수가 변경되었습니다.');
+      await loadProfileIntoModal(userId);
+    }
+
+    // wire admin edit buttons
+    if (adminEditLikesBtn) {
+      adminEditLikesBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!isAdmin) return;
+        const input = prompt('게시글 좋아요 수를 입력하세요 (숫자):', postLikeCountEl.innerText || '0');
+        if (input === null) return;
+        const n = parseInt(input);
+        if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
+        await adminSetPostLikes(n);
+      });
+    }
+    if (adminEditBookmarksBtn) {
+      adminEditBookmarksBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!isAdmin) return;
+        const input = prompt('게시글 북마크 수를 입력하세요 (숫자):', postBookmarkCountEl.innerText || '0');
+        if (input === null) return;
+        const n = parseInt(input);
+        if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
+        await adminSetPostBookmarks(n);
+      });
+    }
+
+    if (adminEditFollowersBtn) {
+      adminEditFollowersBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!isAdmin) return;
+        const uid = currentAuthorId || (currentUser && currentUser.uid);
+        if (!uid) { alert('사용자 ID를 찾을 수 없습니다.'); return; }
+        const input = prompt('사용자 팔로워 수를 입력하세요 (숫자):', followersCountEl.innerText.replace(/[^0-9]/g,'') || '0');
+        if (input === null) return;
+        const n = parseInt(input);
+        if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
+        await adminSetUserFollowers(uid, n);
+      });
+    }
+    if (adminEditFollowingBtn) {
+      adminEditFollowingBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!isAdmin) return;
+        const uid = currentAuthorId || (currentUser && currentUser.uid);
+        if (!uid) { alert('사용자 ID를 찾을 수 없습니다.'); return; }
+        const input = prompt('사용자 팔로잉 수를 입력하세요 (숫자):', followingCountEl.innerText.replace(/[^0-9]/g,'') || '0');
+        if (input === null) return;
+        const n = parseInt(input);
+        if (isNaN(n) || n < 0) { alert('유효한 숫자를 입력하세요'); return; }
+        await adminSetUserFollowing(uid, n);
+      });
+    }
+
+    // expose admin helper to other places
+    window.__adminHelpers = {
+      setPostLikes: adminSetPostLikes,
+      setPostBookmarks: adminSetPostBookmarks,
+      setCommentLikes: adminSetCommentLikes,
+      setUserFollowers: adminSetUserFollowers,
+      setUserFollowing: adminSetUserFollowing
+    };
 
   </script>
 
@@ -1350,312 +1487,6 @@
         });
       });
     })();
-  </script>
-
-  <!-- =============== 운영자 전용 기능: 한 덩어리 (주석 없음) =============== -->
-  <script type="module">
-    import { getDoc, doc, updateDoc, getDocs, collection, setDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    let isAdmin = false;
-
-    async function checkAdminStatus() {
-      isAdmin = false;
-      // use window.currentUser and window.db (exposed minimally by main module)
-      if (!window.currentUser) { isAdmin = false; setupAdminUI(); return; }
-      try {
-        const uref = doc(window.db, 'users', window.currentUser.uid);
-        const usnap = await getDoc(uref);
-        if (!usnap.exists()) { isAdmin = false; setupAdminUI(); return; }
-        const ud = usnap.data();
-        if ((ud.role && (''+ud.role).toLowerCase() === 'admin') || ud.isAdmin === true) isAdmin = true;
-      } catch (e) {
-        console.error(e);
-        isAdmin = false;
-      }
-      setupAdminUI();
-    }
-
-    async function promptNumber(message, defaultVal) {
-      const raw = prompt(message, defaultVal != null ? String(defaultVal) : '');
-      if (raw === null) return null;
-      const v = parseInt(raw);
-      if (isNaN(v) || v < 0) { alert('0 이상의 정수를 입력하세요.'); return null; }
-      return v;
-    }
-
-    function ensureAdminBtn(parent, id, text) {
-      let btn = document.getElementById(id);
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.id = id;
-        btn.className = 'admin-edit-btn';
-        btn.type = 'button';
-        btn.innerText = text;
-        parent.appendChild(btn);
-      }
-      return btn;
-    }
-
-    function setupAdminUI() {
-      try {
-        const postLikeCountEl = window.postLikeCountEl;
-        const postBookmarkCountEl = window.postBookmarkCountEl;
-        const postViewCountEl = window.postViewCountEl;
-        if (!postLikeCountEl || !postBookmarkCountEl || !postViewCountEl) return;
-
-        const likeParent = postLikeCountEl.parentElement;
-        const bookmarkParent = postBookmarkCountEl.parentElement;
-        const viewParent = postViewCountEl.parentElement;
-        if (isAdmin) {
-          const editLikeBtn = ensureAdminBtn(likeParent, 'adminEditLikeBtn', '수정');
-          editLikeBtn.onclick = async (ev) => {
-            ev.stopPropagation();
-            const postRef = doc(window.db, 'gaesi', window.currentPostId);
-            try {
-              const snap = await getDoc(postRef);
-              const cur = snap.exists() && typeof snap.data().likeCountOverride === 'number' ? snap.data().likeCountOverride : parseInt(postLikeCountEl.innerText) || 0;
-              const v = await promptNumber('게시글 좋아요 수를 입력하세요.', cur);
-              if (v === null) return;
-              await updateDoc(postRef, { likeCountOverride: v });
-              alert('좋아요 수가 업데이트되었습니다.');
-            } catch (e) {
-              console.error(e);
-              alert('오류 발생');
-            }
-          };
-
-          const editBookmarkBtn = ensureAdminBtn(bookmarkParent, 'adminEditBookmarkBtn', '수정');
-          editBookmarkBtn.onclick = async (ev) => {
-            ev.stopPropagation();
-            const postRef = doc(window.db, 'gaesi', window.currentPostId);
-            try {
-              const snap = await getDoc(postRef);
-              const cur = snap.exists() && typeof snap.data().bookmarkCountOverride === 'number' ? snap.data().bookmarkCountOverride : parseInt(postBookmarkCountEl.innerText) || 0;
-              const v = await promptNumber('게시글 북마크 수를 입력하세요.', cur);
-              if (v === null) return;
-              await updateDoc(postRef, { bookmarkCountOverride: v });
-              alert('북마크 수가 업데이트되었습니다.');
-            } catch (e) {
-              console.error(e);
-              alert('오류 발생');
-            }
-          };
-
-          if (!document.getElementById('adminEditViewBtn')) {
-            const viewNode = document.createElement('span');
-            viewNode.style.display = 'inline-flex';
-            viewNode.style.alignItems = 'center';
-            viewParent.appendChild(viewNode);
-            const editViewBtn = document.createElement('button');
-            editViewBtn.id = 'adminEditViewBtn';
-            editViewBtn.className = 'admin-edit-btn';
-            editViewBtn.type = 'button';
-            editViewBtn.innerText = '수정';
-            viewNode.appendChild(editViewBtn);
-            editViewBtn.onclick = async (ev) => {
-              ev.stopPropagation();
-              const postRef = doc(window.db, 'gaesi', window.currentPostId);
-              try {
-                const snap = await getDoc(postRef);
-                const cur = snap.exists() && typeof snap.data().viewCount === 'number' ? snap.data().viewCount : parseInt((postViewCountEl.innerText||'0').replace(/[^0-9]/g,'')) || 0;
-                const v = await promptNumber('게시글 조회수를 입력하세요.', cur);
-                if (v === null) return;
-                await updateDoc(postRef, { viewCount: v });
-                alert('조회수가 업데이트되었습니다.');
-              } catch (e) {
-                console.error(e);
-                alert('오류 발생');
-              }
-            };
-          }
-
-          observeCommentsForAdmin();
-        } else {
-          const ids = ['adminEditLikeBtn','adminEditBookmarkBtn','adminEditViewBtn'];
-          ids.forEach(i => { const el = document.getElementById(i); if (el) el.remove(); });
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    const originalRenderCommentItem = window.renderCommentItem || null;
-    if (originalRenderCommentItem) {
-      window.renderCommentItem = function(commentId, commentData) {
-        const el = originalRenderCommentItem(commentId, commentData);
-        if (!isAdmin) return el;
-        try {
-          const actions = el.querySelector('.comment-actions');
-          if (!actions) return el;
-
-          if (!el.querySelector('.adminEditCommentLikeBtn')) {
-            const editBtn = document.createElement('button');
-            editBtn.className = 'admin-edit-btn adminEditCommentLikeBtn';
-            editBtn.type = 'button';
-            editBtn.innerText = '좋아요 수정';
-            editBtn.onclick = async (ev) => {
-              ev.stopPropagation();
-              try {
-                const commentRef = doc(window.db, 'gaesi', window.currentPostId, 'comments', commentId);
-                const snap = await getDoc(commentRef);
-                const cur = snap.exists() && typeof snap.data().likeCount === 'number' ? snap.data().likeCount : (commentData.likeCount || 0);
-                const v = await promptNumber('댓글 좋아요 수를 입력하세요.', cur);
-                if (v === null) return;
-                await updateDoc(commentRef, { likeCount: v });
-                alert('댓글 좋아요 수가 업데이트되었습니다.');
-              } catch (e) {
-                console.error(e);
-                alert('오류 발생');
-              }
-            };
-            actions.appendChild(editBtn);
-          }
-
-          if (!el.querySelector('.adminPinBtn')) {
-            const pinBtn = document.createElement('button');
-            pinBtn.className = 'admin-edit-btn adminPinBtn';
-            pinBtn.type = 'button';
-            pinBtn.innerText = commentData.pinned ? '고정 해제' : '고정';
-            pinBtn.onclick = async (ev) => {
-              ev.stopPropagation();
-              try {
-                // set pinned true for chosen comment and false for others
-                const allComments = await getDocs(collection(window.db, 'gaesi', window.currentPostId, 'comments'));
-                const batchUpdates = [];
-                allComments.forEach(c => {
-                  const cid = c.id;
-                  const cref = doc(window.db, 'gaesi', window.currentPostId, 'comments', cid);
-                  if (cid === commentId) {
-                    batchUpdates.push(updateDoc(cref, { pinned: true }));
-                  } else {
-                    const d = c.data();
-                    if (d.pinned === true) batchUpdates.push(updateDoc(cref, { pinned: false }));
-                  }
-                });
-                for (const p of batchUpdates) await p;
-                alert('댓글 고정 상태가 변경되었습니다.');
-              } catch (e) {
-                console.error(e);
-                alert('오류 발생');
-              }
-            };
-            actions.appendChild(pinBtn);
-
-            if (commentData.pinned) {
-              const badge = document.createElement('span');
-              badge.className = 'admin-pin-badge';
-              badge.innerText = '고정';
-              el.querySelector('.comment-head').appendChild(badge);
-            }
-          }
-        } catch (e) {
-          console.error(e);
-        }
-        return el;
-      };
-    }
-
-    let commentsObserverInstalled = false;
-    function observeCommentsForAdmin() {
-      if (commentsObserverInstalled) return;
-      commentsObserverInstalled = true;
-      const target = document.getElementById('commentsList');
-      if (!target) return;
-      const mo = new MutationObserver(() => {
-        if (!isAdmin) return;
-        try {
-          const children = Array.from(target.children);
-          const pinnedIndex = children.findIndex(c => c.getAttribute('data-pinned') === '1');
-          if (pinnedIndex > 0) {
-            const pinnedEl = children[pinnedIndex];
-            target.insertBefore(pinnedEl, target.firstChild);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      });
-      mo.observe(target, { childList: true, subtree: false });
-    }
-
-    const originalOpenProfile = window.openProfileModalFor || null;
-    window.openProfileModalFor = async function(userId) {
-      if (originalOpenProfile) await originalOpenProfile(userId);
-      if (!isAdmin) return;
-      try {
-        const f = document.getElementById('followersCount');
-        const g = document.getElementById('followingCount');
-
-        if (!f || !g) return;
-        let ef = document.getElementById('adminEditFollowersBtn');
-        if (!ef) {
-          ef = document.createElement('button');
-          ef.id = 'adminEditFollowersBtn';
-          ef.className = 'admin-edit-btn';
-          ef.type = 'button';
-          ef.innerText = '수정';
-          f.parentElement.appendChild(ef);
-          ef.onclick = async (ev) => {
-            ev.stopPropagation();
-            try {
-              const userRef = doc(window.db, 'users', userId);
-              const snap = await getDoc(userRef);
-              const cur = snap.exists() && typeof snap.data().followerCount === 'number' ? snap.data().followerCount : parseInt((f.textContent||'0').replace(/[^0-9]/g,'')) || 0;
-              const v = await promptNumber('팔로워 수를 입력하세요.', cur);
-              if (v === null) return;
-              await updateDoc(userRef, { followerCount: v });
-              f.textContent = `팔로워 ${v}`;
-              alert('팔로워 수가 업데이트되었습니다.');
-            } catch (e) {
-              console.error(e);
-              alert('오류 발생');
-            }
-          };
-        }
-
-        let eg = document.getElementById('adminEditFollowingBtn');
-        if (!eg) {
-          eg = document.createElement('button');
-          eg.id = 'adminEditFollowingBtn';
-          eg.className = 'admin-edit-btn';
-          eg.type = 'button';
-          eg.innerText = '수정';
-          g.parentElement.appendChild(eg);
-          eg.onclick = async (ev) => {
-            ev.stopPropagation();
-            try {
-              const userRef = doc(window.db, 'users', userId);
-              const snap = await getDoc(userRef);
-              const cur = snap.exists() && typeof snap.data().followingCount === 'number' ? snap.data().followingCount : parseInt((g.textContent||'0').replace(/[^0-9]/g,'')) || 0;
-              const v = await promptNumber('팔로잉 수를 입력하세요.', cur);
-              if (v === null) return;
-              await updateDoc(userRef, { followingCount: v });
-              g.textContent = `팔로잉 ${v}`;
-              alert('팔로잉 수가 업데이트되었습니다.');
-            } catch (e) {
-              console.error(e);
-              alert('오류 발생');
-            }
-          };
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
-    // hook into authentication state (use global auth)
-    if (window.auth && typeof window.auth !== 'undefined') {
-      // use the global onAuthStateChanged exposed earlier
-      window.onAuthStateChanged(window.auth, async (u) => {
-        window.currentUser = u;
-        await checkAdminStatus();
-      });
-      // initial check
-      await checkAdminStatus();
-    } else {
-      // fallback: attempt one check (might be useless until main module finished)
-      await checkAdminStatus();
-    }
-
   </script>
 
 </body>
