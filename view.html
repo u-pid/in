@@ -457,7 +457,7 @@
       currentUser = user;
       window.currentUser = user; // expose
       updateHeader(user);
-      checkAdminStatus(); // ensure admin UI updates on auth change
+      if (typeof checkAdminStatus === 'function') checkAdminStatus(); // 안전 호출
 
       // 댓글 입력 활성화/비활성화
       const commentInput = document.getElementById('commentInput');
@@ -646,7 +646,7 @@
           postViewCountEl.innerText = '';
           // restore title
           document.title = "게시글 보기 - 유피드 밴블리온";
-          checkAdminStatus(); // still update admin UI
+          if (typeof checkAdminStatus === 'function') checkAdminStatus(); // 안전 호출
           return;
         }
         const data = snap.data();
@@ -788,7 +788,7 @@
         window.currentPostId = currentPostId;
 
         // ensure admin status checks after load (so admin buttons appear appropriately)
-        checkAdminStatus();
+        if (typeof checkAdminStatus === 'function') checkAdminStatus(); // 안전 호출
 
         // 완료
         return;
@@ -799,7 +799,7 @@
         postViewCountEl.innerText = '';
         // restore title
         document.title = "게시글 보기 - 유피드 밴블리온";
-        checkAdminStatus();
+        if (typeof checkAdminStatus === 'function') checkAdminStatus(); // 안전 호출
         throw err;
       }
     }
