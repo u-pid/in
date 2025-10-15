@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -759,22 +760,7 @@
               // post-process: remove/replace unsafe iframes (허용된 호스트만)
               const tmp = document.createElement('div');
               tmp.innerHTML = clean;
-              tmp.querySelectorAll('iframe').forEach(iframe => {
-                const src = iframe.getAttribute('src') || '';
-                const allowed = /^(https?:)?\/\/(www\.)?(youtube\.com|youtu\.be|player\.vimeo\.com)/i.test(src);
-                if (!allowed) {
-                  // 안전하게 iframe 제거하고 링크로 대체
-                  const a = document.createElement('a');
-                  a.href = src || '#';
-                  a.textContent = src ? '외부 동영상 링크(열기)' : '외부 동영상';
-                  a.target = '_blank';
-                  iframe.parentNode.replaceChild(a, iframe);
-                } else {
-                  // lazy load & referrerpolicy for allowed iframes
-                  iframe.setAttribute('loading', 'lazy');
-                  iframe.setAttribute('referrerpolicy', 'no-referrer');
-                }
-              });
+              
               return tmp.innerHTML;
             } catch (e) {
               console.error('sanitizeHtml error', e);
