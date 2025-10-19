@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -144,11 +145,20 @@
     footer { background:#111; color:#ccc; font-size:12px; padding:20px; text-align:center; line-height:1.5; margin-top:40px; }
     footer a { color:#ccc; text-decoration:none; margin:0 4.5px; }
     @media (max-width:600px) {
-      .post-title { font-size:18px; }
-      .post-wrap { padding:16px; margin:18px 12px; }
-      .author-avatar { width:40px; height:40px; }
-      .profile-modal .modal-content { width:calc(100% - 20px); }
-    }
+      /* 기존 약간의 스타일 유지 + 다음 항목들 추가/재정의 */
+      .site-content {
+        /* 모바일에서 중앙 최대 너비 제한을 풀고 양옆 패딩을 줄여 콘텐츠 폭을 최대화합니다. */
+        max-width: 100%;
+        padding: 0 10px; /* 기존 12px -> 10px (더 꽉 차게) */
+      }
+
+      .post-title { font-size:20px; } /* 제목을 약간 키워서 눈에 잘 띄게 */
+      .post-wrap {
+        padding: 18px;          /* 내부 여백을 적절히 유지 */
+        margin: 16px 0;         /* 좌우 자동 마진 제거해 폭을 더 넓게 사용 */
+        border-radius: 12px;    /* 모서리를 살짝 둥글게 하여 시각적 안정감 */
+        /* 배경과 그림자 원래대로 유지(원본 의도 보존) */
+      }
   </style>
 </head>
 <body>
@@ -384,7 +394,7 @@
       <img src="https://i.imgur.com/7uI8nfn.png" alt="Logo6" style="height:30px;">
       <img src="https://i.imgur.com/yccwqmB.png" alt="Logo7" style="height:30px;">
       <img src="https://i.imgur.com/mHH406e.png" alt="Logo8" style="height:30px;">
-      <img src="https://i.imgur.com/tc4GZfD.png" alt="Logo9" style="height:30px;">
+      <img src="https://i.imgur.com/tc4GZfM.png" alt="Logo9" style="height:30px;">
       <div style="width:1px; height:30px; background:#444;"></div>
       <img src="https://i.imgur.com/cHJBLaF.png" alt="Logo10" style="height:30px;">
     </div>
